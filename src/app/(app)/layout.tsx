@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const NAV = [
     { href: "/dashboard",        label: "Dashboard",   icon: "◉",  show: true },
     { href: "/projects/new",     label: "New Project", icon: "✦",  show: can.createProject(role) },
-    { href: "/settings/team",    label: "Team",        icon: "👥", show: can.inviteMembers(role) },
+    { href: "/settings/team",    label: "Team",        icon: "👥", show: true },
     { href: "/settings/billing", label: "Billing",     icon: "💳", show: can.viewBilling(role) },
     { href: "/settings",         label: "Settings",    icon: "⚙️", show: true },
   ].filter(n => n.show);
@@ -29,13 +29,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#080E1A", color: "#E2EBF6", fontFamily: "'DM Sans', sans-serif" }}>
       <aside style={{ width: 220, background: "#0A1220", borderRight: "1px solid #1E3A5F", display: "flex", flexDirection: "column", padding: "20px 12px", gap: 8, position: "sticky", top: 0, height: "100vh" }}>
-        {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 16px", borderBottom: "1px solid #1E3A5F" }}>
           <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#007A73,#3B82F6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff" }}>RM</div>
           <span style={{ fontWeight: 700, fontSize: 14 }}>RoadmapAI</span>
         </div>
 
-        {/* Org switcher */}
         <div style={{ padding: "8px 0" }}>
           <OrganizationSwitcher
             hidePersonal
@@ -56,14 +54,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           />
         </div>
 
-        {/* Role badge */}
         <div style={{ padding: "4px 8px" }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: rm.color, background: rm.bg, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.05em" }}>
             {rm.label}
           </span>
         </div>
 
-        {/* Nav */}
         <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, marginTop: 4 }}>
           {NAV.map(n => (
             <Link key={n.href + n.label} href={n.href} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, color: "#94A3B8", textDecoration: "none", fontSize: 13 }}>
@@ -72,7 +68,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        {/* User */}
         <div style={{ borderTop: "1px solid #1E3A5F", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
           <UserButton />
           <div>
@@ -84,7 +79,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <main style={{ flex: 1, overflowY: "auto" }}>{children}</main>
     </div>
-  );
-}
   );
 }
