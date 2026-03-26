@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organisation {
+  id          String   @id @default(cuid())
+  clerkOrgId  String   @unique
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  stripePriceId        String?
+  subscriptionStatus   SubscriptionStatus @default(FREE)
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+
+  members      Member[]
+  projects     Project[]
+  invitations  Invitation[]
+  resources    Resource[]
+
+  @@map("organisations")
+}
+
+enum SubscriptionStatus {
+  FREE
+  PRO
+  BUSINESS
+  CANCELLED
+  PAST_DUE
+}
+
+model User {
+  id         String   @id @default(cuid())
+  clerkId    String   @unique
+  email      String   @unique
+  name       String?
+  avatarUrl  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memberships Member[]
+  activities  Activity[]
+
+  @@map("users")
+}
+
+model Member {
+  id             String   @id @default(cuid())
+  role           Role     @default(VIEWER)
+  joinedAt       DateTime @default(now())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+  @@map("members")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  email          String
+  role           Role         @default(VIEWER)
+  token          String       @unique @default(cuid())
+  status         InviteStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model Project {
+  id                 String        @id @default(cuid())
+  name               String
+  description        String?       @db.Text
+  functionalAnalysis String?       @db.Text
+  startDate          DateTime
+  endDate            DateTime
+  endDateForecast    DateTime?
+  status             ProjectStatus @default(ACTIVE)
+  shareToken         String?       @unique
+  shareEnabled       Boolean       @default(false)
+  category   String?  // detected project type from AI
+
+  budgetTotal     Float @default(0)
+  costActual      Float @default(0)
+  revenueExpected Float @default(0)
+
+  healthScore Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  phases      Phase[]
+  sprints     Sprint[]
+  activities  Activity[]
+  risks       Risk[]
+  assignments ResourceAssignment[]
+  dependsOn   ProjectDependency[] @relation("dependent")
+  blockedBy   ProjectDependency[] @relation("blocker")
+
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model ProjectDependency {
+  id          String  @id @default(cuid())
+  projectId   String
+  dependsOnId String
+  project     Project @relation("dependent", fields: [projectId], references: [id], onDelete: Cascade)
+  dependsOn   Project @relation("blocker", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, dependsOnId])
+  @@map("project_dependencies")
+}
+
+model Resource {
+  id            String   @id @default(cuid())
+  name          String
+  role          String
+  costPerHour   Float    @default(0)
+  capacityHours Float    @default(160)
+  createdAt     DateTime @default(now())
+
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  assignments ResourceAssignment[]
+
+  @@map("resources")
+}
+
+model ResourceAssignment {
+  id             String   @id @default(cuid())
+  estimatedHours Float    @default(0)
+  actualHours    Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, resourceId])
+  @@map("resource_assignments")
+}
+
+model Risk {
+  id          String     @id @default(cuid())
+  title       String
+  description String?    @db.Text
+  probability Int        @default(3)
+  impact      Int        @default(3)
+  status      RiskStatus @default(OPEN)
+  mitigation  String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("risks")
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATED
+  CLOSED
+}
+
+model Phase {
+  id     String @id @default(cuid())
+  num    Int
+  label  String
+  sub    String?
+  accent String @default("#007A73")
+  order  Int    @default(0)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  sprints Sprint[]
+
+  @@map("phases")
+}
+
+model Sprint {
+  id        String       @id @default(cuid())
+  num       String
+  name      String
+  goal      String?      @db.Text
+  startDate DateTime?
+  endDate   DateTime?
+  status    SprintStatus @default(UPCOMING)
+  order     Int          @default(0)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  phaseId String?
+  phase   Phase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  features Feature[]
+
+  @@map("sprints")
+}
+
+enum SprintStatus {
+  UPCOMING
+  ACTIVE
+  DONE
+}
+
+model Feature {
+  id             String        @id @default(cuid())
+  title          String
+  module         String?
+  status         FeatureStatus @default(TODO)
+  priority       Priority      @default(MEDIUM)
+  order          Int           @default(0)
+  notes          String?       @db.Text
+  estimatedHours Float         @default(0)
+  actualHours    Float         @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  sprintId String
+  sprint   Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+
+  dependsOn FeatureDependency[] @relation("dependant")
+  blockedBy FeatureDependency[] @relation("blocker")
+
+  @@map("features")
+}
+
+model FeatureDependency {
+  id          String  @id @default(cuid())
+  featureId   String
+  dependsOnId String
+  feature     Feature @relation("dependant", fields: [featureId], references: [id], onDelete: Cascade)
+  blocker     Feature @relation("blocker", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, dependsOnId])
+  @@map("feature_dependencies")
+}
+
+enum FeatureStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  action    String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
