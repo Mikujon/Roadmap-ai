@@ -1,189 +1,64 @@
-"use client";
+import { getAuthContext } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { can } from "@/lib/permissions";
+import { Role } from "@prisma/client";
+import { PLANS } from "@/lib/stripe";
 
-import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+export default async function BillingPage() {
+  const ctx = await getAuthContext();
+  if (!ctx) redirect("/sign-in");
+  if (!can.viewBilling(ctx.role as Role)) redirect("/dashboard");
 
-interface BillingInfo {
-  plan: "FREE" | "PRO" | "TEAM";
-  status: string | null;
-  currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
-}
-
-export default function BillingPage() {
-  const { user } = useUser();
-  const [billing, setBilling] = useState<BillingInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/billing/info")
-      .then((r) => r.json())
-      .then((data) => {
-        setBilling(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const handleCheckout = async (plan: "PRO" | "TEAM") => {
-    setCheckoutLoading(plan);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
-      setCheckoutLoading(null);
-    }
-  };
-
-  const handlePortal = async () => {
-    setPortalLoading(true);
-    try {
-      const res = await fetch("/api/billing/portal", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
-  const plans = [
-    {
-      id: "FREE",
-      name: "Free",
-      price: "$0",
-      period: "forever",
-      features: ["3 projects", "10 AI generations/mo", "1 team member"],
-      cta: "Current Plan",
-      disabled: true,
-    },
-    {
-      id: "PRO",
-      name: "Pro",
-      price: "$19",
-      period: "per month",
-      features: ["Unlimited projects", "500 AI generations/mo", "5 team members", "Priority support"],
-      cta: "Upgrade to Pro",
-      disabled: false,
-    },
-    {
-      id: "TEAM",
-      name: "Team",
-      price: "$49",
-      period: "per month",
-      features: ["Unlimited projects", "Unlimited AI generations", "Unlimited members", "SSO + audit log"],
-      cta: "Upgrade to Team",
-      disabled: false,
-    },
-  ];
-
-  if (loading) {
-    return (
-      <div className="p-8 text-center text-gray-400">Loading billing info…</div>
-    );
-  }
+  const current = ctx.org.subscriptionStatus;
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-10">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Billing & Plans</h1>
-        <p className="text-gray-400 mt-1">
-          Manage your subscription and payment details.
-        </p>
-      </div>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "40px 32px" }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#E2EBF6" }}>Billing</h2>
+      <p style={{ fontSize: 13, color: "#64748B", marginBottom: 32 }}>
+        Current plan: <strong style={{ color: "#E2EBF6" }}>{current}</strong>
+        {ctx.org.currentPeriodEnd
+          ? ` · renews ${new Date(ctx.org.currentPeriodEnd).toLocaleDateString()}`
+          : ""}
+      </p>
 
-      {/* Current status */}
-      {billing && billing.plan !== "FREE" && (
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400">Current plan</p>
-            <p className="text-white font-semibold text-lg">{billing.plan}</p>
-            {billing.currentPeriodEnd && (
-              <p className="text-gray-500 text-sm mt-0.5">
-                {billing.cancelAtPeriodEnd ? "Cancels" : "Renews"} on{" "}
-                {new Date(billing.currentPeriodEnd).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={handlePortal}
-            disabled={portalLoading}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition disabled:opacity-50"
-          >
-            {portalLoading ? "Loading…" : "Manage subscription"}
-          </button>
-        </div>
-      )}
-
-      {/* Plan cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map((plan) => {
-          const isCurrent = billing?.plan === plan.id;
-          const isPopular = plan.id === "PRO";
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 32 }}>
+        {Object.entries(PLANS).map(([key, plan]) => {
+          const isCurrent = current === key;
           return (
-            <div
-              key={plan.id}
-              className={`relative rounded-xl border p-6 flex flex-col gap-4 ${
-                isPopular
-                  ? "border-blue-500 bg-blue-950/30"
-                  : "border-gray-700 bg-gray-800"
-              }`}
-            >
-              {isPopular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-3 py-0.5 rounded-full">
-                  Most popular
-                </span>
+            <div key={key} style={{ background: "#0D1929", border: `1px solid ${isCurrent ? "#007A73" : "#1E3A5F"}`, borderRadius: 12, padding: 24 }}>
+              {isCurrent && (
+                <div style={{ fontSize: 10, color: "#007A73", fontWeight: 700, marginBottom: 10, letterSpacing: "0.05em" }}>CURRENT PLAN</div>
               )}
-              <div>
-                <h2 className="text-white font-bold text-lg">{plan.name}</h2>
-                <p className="text-3xl font-extrabold text-white mt-1">
-                  {plan.price}
-                  <span className="text-sm font-normal text-gray-400 ml-1">
-                    /{plan.period}
-                  </span>
-                </p>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: "#E2EBF6" }}>{plan.name}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#007A73", marginBottom: 16 }}>
+                {plan.price === 0 ? "Free" : `$${plan.price}/mo`}
               </div>
-              <ul className="space-y-2 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-gray-300">
-                    <span className="text-green-400">✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              {isCurrent ? (
-                <div className="mt-2 text-center text-sm text-gray-400 py-2 border border-gray-600 rounded-lg">
-                  ✓ Your current plan
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleCheckout(plan.id as "PRO" | "TEAM")}
-                  disabled={!!checkoutLoading}
-                  className={`mt-2 w-full py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 ${
-                    isPopular
-                      ? "bg-blue-600 hover:bg-blue-500 text-white"
-                      : "bg-gray-700 hover:bg-gray-600 text-white"
-                  }`}
-                >
-                  {checkoutLoading === plan.id ? "Loading…" : plan.cta}
-                </button>
+              <div style={{ fontSize: 12, color: "#64748B", display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                <span>✓ {plan.projects === -1 ? "Unlimited" : plan.projects} project{plan.projects !== 1 ? "s" : ""}</span>
+                <span>✓ {plan.members === -1 ? "Unlimited" : plan.members} member{plan.members !== 1 ? "s" : ""}</span>
+                {key !== "FREE" && <span>✓ AI roadmap generation</span>}
+                {key === "BUSINESS" && <span>✓ SSO + custom branding</span>}
+              </div>
+              {!isCurrent && key !== "FREE" && (
+                <form action="/api/billing/checkout" method="POST">
+                  <input type="hidden" name="priceId" value={key === "PRO" ? process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? "" : process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS ?? ""} />
+                  <button type="submit" style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg,#007A73,#0a9a90)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Upgrade to {plan.name}
+                  </button>
+                </form>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* FAQ / note */}
-      <p className="text-gray-500 text-sm text-center">
-        All plans include a 14-day free trial. Cancel anytime. Payments processed
-        securely by Stripe.
-      </p>
+      {current !== "FREE" && (
+        <form action="/api/billing/portal" method="POST">
+          <button type="submit" style={{ padding: "10px 22px", background: "#0F1827", color: "#64748B", border: "1px solid #1E3A5F", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>
+            Manage subscription →
+          </button>
+        </form>
+      )}
     </div>
   );
 }
