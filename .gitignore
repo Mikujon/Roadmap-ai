@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -16,6 +17,11 @@
 # next.js
 /.next/
 /out/
+**/.next/
+**/out/
+**/.turbo/
+backup.dump
+backup_full.sql
 
 # production
 /build
@@ -44,3 +50,6 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+.env
+.env.local

@@ -1,64 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
-
-async function recalculateHealth(projectId: string) {
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    include: {
-      sprints: { include: { features: true } },
-      risks: true,
-      assignments: { include: { resource: true } },
-    },
-  });
-  if (!project) return;
-
-  const allFeatures = project.sprints.flatMap(s => s.features);
-  const total = allFeatures.length;
-  const done  = allFeatures.filter(f => f.status === "DONE").length;
-
-  const now   = Date.now();
-  const start = new Date(project.startDate).getTime();
-  const end   = new Date(project.endDate).getTime();
-  const plannedProgress = end > start ? Math.min((now - start) / (end - start), 1) : 0;
-  const actualProgress  = total > 0 ? done / total : 0;
-  const scheduleScore   = plannedProgress > 0
-    ? Math.min(actualProgress / plannedProgress, 1) * 100
-    : actualProgress * 100;
-
-  const budget = project.budgetTotal;
-  let costScore = 100;
-  if (budget > 0) {
-    const ratio = project.costActual / budget;
-    costScore = ratio <= 1 ? 100 : Math.max(0, 100 - (ratio - 1) * 200);
-  }
-
-  let resourceScore = 100;
-  if (project.assignments.length > 0) {
-    const utilizations = project.assignments.map(a =>
-      a.resource.capacityHours > 0 ? a.actualHours / a.resource.capacityHours : 0
-    );
-    const avgUtil = utilizations.reduce((a, b) => a + b, 0) / utilizations.length;
-    resourceScore = avgUtil <= 0.8 ? 100 : avgUtil <= 1.0 ? 80 : avgUtil <= 1.2 ? 50 : 20;
-  }
-
-  let riskScore = 100;
-  const openRisks = project.risks.filter(r => r.status === "OPEN");
-  if (openRisks.length > 0) {
-    const avgRisk = openRisks.reduce((a, r) => a + (r.probability * r.impact), 0) / openRisks.length;
-    riskScore = Math.max(0, 100 - (avgRisk / 25) * 100);
-  }
-
-  const healthScore = Math.round(
-    scheduleScore * 0.30 +
-    costScore     * 0.30 +
-    resourceScore * 0.20 +
-    riskScore     * 0.20
-  );
-
-  await db.project.update({ where: { id: projectId }, data: { healthScore } });
-}
+import { triggerGuardian } from "@/lib/guardian-trigger";
+import { emit } from "@roadmap/events";
 
 export async function PATCH(
   req: Request,
@@ -68,16 +14,29 @@ export async function PATCH(
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // ── Org isolation check ──────────────────────────────────────────────────
+  const existing = await db.feature.findFirst({
+    where: { id },
+    include: { sprint: { include: { project: true } } },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (existing.sprint.project.organisationId !== ctx.org.id)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // ────────────────────────────────────────────────────────────────────────
+
   const body = UpdateFeatureSchema.parse(await req.json());
 
   const feature = await db.feature.update({
     where: { id },
     data: {
-      ...(body.status   && { status:   body.status as any }),
-      ...(body.priority && { priority: body.priority as any }),
-      ...(body.title    && { title:    body.title }),
-      ...(body.module   !== undefined && { module: body.module }),
-      ...(body.notes    !== undefined && { notes:  body.notes }),
+      ...(body.status        && { status:       body.status as any }),
+      ...(body.priority      && { priority:     body.priority as any }),
+      ...(body.title         && { title:        body.title }),
+      ...(body.module        !== undefined && { module:       body.module }),
+      ...(body.notes         !== undefined && { notes:        body.notes }),
+      ...(body.assignedToId  !== undefined && { assignedToId: body.assignedToId }),
+      ...(body.estimatedHours !== undefined && { estimatedHours: body.estimatedHours }),
+      ...(body.actualHours    !== undefined && { actualHours:    body.actualHours }),
     },
     include: {
       sprint: {
@@ -117,9 +76,36 @@ export async function PATCH(
   } else if (project.status === "COMPLETED") {
     await db.project.update({ where: { id: project.id }, data: { status: "ACTIVE" } });
   }
+  revalidatePath("/dashboard");
+  revalidatePath("/portfolio");
+  revalidatePath("/cost");
 
-  // Recalculate health score
-  await recalculateHealth(project.id);
+  // Emit domain event (non-blocking — outbox poller dispatches to BullMQ)
+  if (body.status && body.status !== existing.status) {
+    await emit(db as any, {
+      type:          body.status === "BLOCKED" ? "feature.blocked" : "feature.status_changed",
+      aggregateType: "feature",
+      aggregateId:   id,
+      organisationId: ctx.org.id,
+      projectId:     project.id,
+      actorId:       ctx.user.id,
+      actorName:     ctx.user.name ?? ctx.user.email,
+      payload: body.status === "BLOCKED"
+        ? { featureId: id, featureTitle: existing.title, sprintId: existing.sprintId }
+        : {
+            featureId:    id,
+            featureTitle: existing.title,
+            from:         existing.status,
+            to:           body.status,
+            sprintId:     existing.sprintId,
+            sprintName:   existing.sprint.name,
+          },
+    } as any);
+  } else {
+    // Non-status mutations still need Guardian refresh
+    triggerGuardian(project.id, project.name);
+  }
 
   return NextResponse.json({ ok: true });
 }
+  

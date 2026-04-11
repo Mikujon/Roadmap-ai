@@ -14,18 +14,19 @@ export async function getAuthContext() {
 
   // Upsert user
   const user = await db.user.upsert({
-    where: { clerkId: userId },
+    where:  { clerkId: userId },
     update: {
-      name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
-      email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
+      name:     `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
+      email:    clerkUser.emailAddresses[0]?.emailAddress ?? "",
       avatarUrl: clerkUser.imageUrl,
     },
     create: {
-      clerkId: userId,
-      name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
-      email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
+      clerkId:  userId,
+      name:     `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
+      email:    clerkUser.emailAddresses[0]?.emailAddress ?? "",
       avatarUrl: clerkUser.imageUrl,
     },
+    select: { id: true, name: true, email: true, avatarUrl: true, preferredView: true },
   });
 
   // Upsert organisation
@@ -60,4 +61,15 @@ export function requireAuth(handler: Function) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     return handler(req, ctx, context);
   };
+}
+
+/**
+ * Fetches a project by ID and verifies it belongs to the authenticated org.
+ * Returns null if not found or org mismatch — callers should return 404.
+ */
+export async function requireProject(projectId: string, orgId: string, include?: Record<string, unknown>) {
+  return db.project.findFirst({
+    where: { id: projectId, organisationId: orgId },
+    ...(include ? { include } : {}),
+  });
 }

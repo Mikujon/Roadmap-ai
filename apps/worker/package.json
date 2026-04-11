@@ -1,0 +1,31 @@
+{
+  "name": "@roadmap/worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev":       "tsx watch src/index.ts",
+    "start":     "node -r tsx/cjs dist/index.js",
+    "build":     "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk":  "^0.39.0",
+    "@prisma/client":     "^6.5.0",
+    "dotenv":             "^16.5.0",
+    "@roadmap/ai":        "workspace:*",
+    "@roadmap/core":      "workspace:*",
+    "@roadmap/engines":   "workspace:*",
+    "@roadmap/events":    "workspace:*",
+    "@roadmap/logger":    "workspace:*",
+    "@roadmap/metrics":   "workspace:*",
+    "@roadmap/queue":     "workspace:*",
+    "bullmq":             "^5.25.6",
+    "ioredis":            "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.17",
+    "tsx":         "^4.19.3",
+    "typescript":  "^5.8.3"
+  }
+}

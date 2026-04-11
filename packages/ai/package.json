@@ -1,0 +1,27 @@
+{
+  "name": "@roadmap/ai",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./guardian": "./src/guardian.ts",
+    "./decisions": "./src/decisions.ts",
+    "./cache": "./src/cache.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@roadmap/core": "workspace:*",
+    "ioredis": "^5.4.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.17",
+    "typescript": "^5.8.3"
+  }
+}

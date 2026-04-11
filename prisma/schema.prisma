@@ -28,6 +28,7 @@ model Organisation {
   projects     Project[]
   invitations  Invitation[]
   resources    Resource[]
+  departments  Department[]
 
   @@map("organisations")
 }
@@ -41,16 +42,18 @@ enum SubscriptionStatus {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  clerkId    String   @unique
-  email      String   @unique
-  name       String?
-  avatarUrl  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  preferredView String?  // "PMO"|"CEO"|"STK"|"DEV"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  memberships Member[]
-  activities  Activity[]
+  memberships       Member[]
+  activities        Activity[]
+  requestedProjects Project[]
 
   @@map("users")
 }
@@ -90,7 +93,6 @@ model Invitation {
 
   @@map("invitations")
 }
-
 enum InviteStatus {
   PENDING
   ACCEPTED
@@ -108,13 +110,14 @@ model Project {
   status             ProjectStatus @default(ACTIVE)
   shareToken         String?       @unique
   shareEnabled       Boolean       @default(false)
-  category   String?  // detected project type from AI
+  category           String?
+  guardianReport     GuardianReport?
+  
 
   budgetTotal     Float @default(0)
   costActual      Float @default(0)
   revenueExpected Float @default(0)
-
-  healthScore Float @default(0)
+  healthScore     Float @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -122,22 +125,34 @@ model Project {
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  requestedById String?
+  requestedBy   User?   @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
   phases      Phase[]
   sprints     Sprint[]
   activities  Activity[]
   risks       Risk[]
+  statusLogs   ProjectStatusLog[]
   assignments ResourceAssignment[]
   dependsOn   ProjectDependency[] @relation("dependent")
   blockedBy   ProjectDependency[] @relation("blocker")
+  departments ProjectDepartment[]
+  alerts      Alert[]
+  snapshots   ProjectSnapshot[]
 
+  @@index([organisationId])
+  @@index([organisationId, status])
+  @@index([updatedAt])
   @@map("projects")
 }
 
 enum ProjectStatus {
+  NOT_STARTED
   ACTIVE
   PAUSED
   COMPLETED
   ARCHIVED
+  CLOSED
 }
 
 model ProjectDependency {
@@ -151,6 +166,17 @@ model ProjectDependency {
   @@map("project_dependencies")
 }
 
+model ProjectDepartment {
+  id           String     @id @default(cuid())
+  projectId    String
+  departmentId String
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, departmentId])
+  @@map("project_departments")
+}
+
 model Resource {
   id            String   @id @default(cuid())
   name          String
@@ -162,9 +188,30 @@ model Resource {
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
-  assignments ResourceAssignment[]
+  assignments  ResourceAssignment[]
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedFeatures Feature[]
 
   @@map("resources")
+}
+
+model Department {
+  id             String       @id @default(cuid())
+  name           String
+  budget         Float        @default(0)
+  color          String       @default("#007A73")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  resources Resource[]
+  projects  ProjectDepartment[]
+
+  @@unique([name, organisationId])
+  @@map("departments")
 }
 
 model ResourceAssignment {
@@ -192,12 +239,16 @@ model Risk {
   impact      Int        @default(3)
   status      RiskStatus @default(OPEN)
   mitigation  String?    @db.Text
+  ownerId     String?
+  ownerName   String?
+  category    String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
+  @@index([projectId])
+  @@index([projectId, status])
   @@map("risks")
 }
 
@@ -241,6 +292,8 @@ model Sprint {
 
   features Feature[]
 
+  @@index([projectId])
+  @@index([projectId, status])
   @@map("sprints")
 }
 
@@ -268,7 +321,11 @@ model Feature {
 
   dependsOn FeatureDependency[] @relation("dependant")
   blockedBy FeatureDependency[] @relation("blocker")
+  assignedToId   String?
+  assignedTo     Resource? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  @@index([sprintId])
+  @@index([sprintId, status])
   @@map("features")
 }
 
@@ -298,16 +355,129 @@ enum Priority {
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  action    String
-  meta      Json?
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  action         String
+  entity         String?
+  entityId       String?
+  entityName     String?
+  meta           Json?
+  createdAt      DateTime @default(now())
+  userId         String?
+  userName       String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organisationId String?
 
-  userId String?
-  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
+  @@index([organisationId])
+  @@index([organisationId, createdAt])
+  @@index([projectId])
   @@map("activities")
+}
+
+model ProjectStatusLog {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      ProjectStatus
+  note        String?
+  changedById String?
+  changedBy   String?
+  createdAt   DateTime @default(now())
+}
+model GuardianReport {
+  id             String   @id @default(cuid())
+  projectId      String   @unique
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  healthScore    Int      @default(0)
+  healthStatus   String   @default("UNKNOWN")
+  insight        String   @default("")
+  recommendation String   @default("")
+  riskFlag       Boolean  @default(false)
+  confidence     Float    @default(0)
+  alertCount     Int      @default(0)
+  generatedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("guardian_reports")
+}
+model Alert {
+  id             String    @id @default(cuid())
+  organisationId String
+  projectId      String?
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type           String    // "overdue", "spi_critical", "at_risk", "budget_critical", "blocked", "status_change", "milestone"
+  level          String    // "critical", "warning", "info"
+  title          String
+  detail         String
+  action         String?
+  read           Boolean   @default(false)
+  resolved       Boolean   @default(false)
+  emailSent      Boolean   @default(false)
+  requiresValidation Boolean  @default(false)
+  validatedBy    String?
+  validatedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([organisationId])
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("alerts")
+}
+model ProjectSnapshot {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version     Int
+  name        String
+  description String?
+  data        Json     // full project state (sprints, features, phases)
+  reason      String?  // why snapshot was taken
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([projectId])
+  @@map("project_snapshots")
+}
+
+// ── Domain Events ─────────────────────────────────────────────────────────
+// Immutable append-only event store. Never updated, never deleted.
+model DomainEvent {
+  id             String   @id @default(cuid())
+  type           String   // e.g. "feature.status_changed", "sprint.completed", "risk.opened"
+  aggregateType  String   // "project" | "sprint" | "feature" | "risk"
+  aggregateId    String   // the entity ID
+  organisationId String
+  projectId      String?
+  actorId        String?  // user who triggered the event
+  actorName      String?
+  payload        Json     // full event payload (before + after state where relevant)
+  occurredAt     DateTime @default(now())
+
+  outboxEvent OutboxEvent?
+
+  @@index([organisationId])
+  @@index([aggregateId])
+  @@index([organisationId, occurredAt])
+  @@map("domain_events")
+}
+
+// ── Transactional Outbox ──────────────────────────────────────────────────
+// Written in the same DB transaction as the domain event.
+// Worker polls for unprocessed rows and enqueues BullMQ jobs.
+model OutboxEvent {
+  id            String    @id @default(cuid())
+  domainEventId String    @unique
+  domainEvent   DomainEvent @relation(fields: [domainEventId], references: [id], onDelete: Cascade)
+  queue         String    // target BullMQ queue name
+  jobName       String    // BullMQ job name
+  payload       Json      // job data (may differ from domain event payload)
+  processedAt   DateTime? // null = pending
+  attempts      Int       @default(0)
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([processedAt])
+  @@index([createdAt])
+  @@map("outbox_events")
 }

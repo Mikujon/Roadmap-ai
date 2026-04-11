@@ -1,163 +1,400 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import FinancialsView from "./FinancialsView";
 import GovernanceView from "./GovernanceView";
+import BoardView from "./BoardView";
+import OverviewView from "./OverviewView";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { useProject } from "./useProject";
 
 type Status = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 type Priority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 type SprintStatus = "UPCOMING" | "ACTIVE" | "DONE";
 
 interface FeatureDep { id: string; dependsOnId: string; }
-interface Feature { id: string; title: string; module?: string; status: Status; priority: Priority; notes?: string; dependsOn: FeatureDep[]; }
+interface Feature {
+  id: string; title: string; module?: string; status: Status; priority: Priority;
+  notes?: string; dependsOn: FeatureDep[];
+  estimatedHours: number; actualHours: number;
+}
 interface Sprint  { id: string; num: string; name: string; goal?: string; status: SprintStatus; startDate?: string; endDate?: string; features: Feature[]; }
 interface Phase   { id: string; num: number; label: string; sub?: string; accent: string; }
 interface ProjectDep { id: string; dependsOnId: string; dependsOn: { id: string; name: string; } }
-interface Project { id: string; name: string; startDate: string; endDate: string; phases: Phase[]; sprints: Sprint[]; shareToken?: string; shareEnabled: boolean; dependsOn: ProjectDep[]; }
+interface Risk { id: string; title: string; description?: string; probability: number; impact: number; status: string; mitigation?: string; ownerName?: string; category?: string; }
+interface Resource { id: string; name: string; role: string; costPerHour: number; }
+interface Assignment { id: string; estimatedHours: number; actualHours: number; resource: Resource; }
+interface Department { id: string; name: string; color: string; }
+interface Requester { id: string; name?: string; email: string; }
+interface Project {
+  id: string; name: string; description?: string; startDate: string; endDate: string;
+  budgetTotal: number; costActual: number; revenueExpected: number; status: string;
+  phases: Phase[]; sprints: Sprint[]; shareToken?: string; shareEnabled: boolean;
+  dependsOn: ProjectDep[]; risks: Risk[]; assignments: Assignment[];
+  departments: Department[]; requestedBy?: Requester;
+}
 
-const STATUS_META: Record<Status, { label: string; color: string; bg: string; icon: string }> = {
-  TODO:        { label: "To Do",       color: "#9CA3AF", bg: "rgba(156,163,175,0.10)", icon: "○" },
-  IN_PROGRESS: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.12)",  icon: "◐" },
-  DONE:        { label: "Done",        color: "#00C97A", bg: "rgba(0,201,122,0.12)",   icon: "✓" },
-  BLOCKED:     { label: "Blocked",     color: "#EF4444", bg: "rgba(239,68,68,0.12)",   icon: "✕" },
+const STATUS_META: Record<Status, { label: string; color: string; bg: string; border: string; icon: string }> = {
+  TODO:        { label: "To Do",       color: "#64748B", bg: "#F8FAFC", border: "#E2E8F0", icon: "○" },
+  IN_PROGRESS: { label: "In Progress", color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", icon: "◐" },
+  DONE:        { label: "Done",        color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", icon: "✓" },
+  BLOCKED:     { label: "Blocked",     color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "✕" },
 };
-const SPRINT_STATUS: Record<SprintStatus, { label: string; color: string }> = {
-  UPCOMING: { label: "Upcoming", color: "#64748B" },
-  ACTIVE:   { label: "Active",   color: "#3B82F6" },
-  DONE:     { label: "Completed",color: "#00C97A" },
+const SPRINT_STATUS: Record<SprintStatus, { label: string; color: string; bg: string }> = {
+  UPCOMING: { label: "Upcoming", color: "#64748B", bg: "#F8FAFC" },
+  ACTIVE:   { label: "Active",   color: "#2563EB", bg: "#EFF6FF" },
+  DONE:     { label: "Done",     color: "#059669", bg: "#ECFDF5" },
 };
-const PRIORITY_COLOR: Record<Priority, string> = {
-  CRITICAL: "#EF4444", HIGH: "#F97316", MEDIUM: "#EAB308", LOW: "#22C55E",
+const PROJECT_STATUS_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  NOT_STARTED: { label: "Not Started", color: "#64748B", bg: "#F8FAFC",  border: "#E2E8F0" },
+  ACTIVE:      { label: "Active",      color: "#059669", bg: "#ECFDF5",  border: "#A7F3D0" },
+  PAUSED:      { label: "Paused",      color: "#D97706", bg: "#FFFBEB",  border: "#FDE68A" },
+  COMPLETED:   { label: "Completed",   color: "#2563EB", bg: "#EFF6FF",  border: "#BFDBFE" },
+  CLOSED:      { label: "Closed",      color: "#94A3B8", bg: "#F8FAFC",  border: "#E2E8F0" },
+  ARCHIVED:    { label: "Archived",    color: "#94A3B8", bg: "#F8FAFC",  border: "#E2E8F0" },
 };
+const RISK_SCORE_COLOR = (s: number) => s >= 15 ? "#DC2626" : s >= 8 ? "#EA580C" : s >= 4 ? "#D97706" : "#059669";
+const RISK_SCORE_BG    = (s: number) => s >= 15 ? "#FEF2F2" : s >= 8 ? "#FFF7ED" : s >= 4 ? "#FFFBEB" : "#ECFDF5";
+const RISK_SCORE_LABEL = (s: number) => s >= 15 ? "CRITICAL" : s >= 8 ? "HIGH" : s >= 4 ? "MEDIUM" : "LOW";
 
-export default function RoadmapClient({ project: initial, role, allProjects = [] }: { project: Project; role: string; allProjects?: { id: string; name: string }[] }) {
-  const [project, setProject] = useState({ ...initial, dependsOn: initial.dependsOn ?? [] });
-  const [view, setView] = useState<"board" | "backlog" | "gantt" | "metrics" | "dependencies" | "financials" | "governance">("board");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [search, setSearch] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [shareUrl, setShareUrl] = useState(
-    initial.shareEnabled && initial.shareToken
-      ? `${window.location.origin}/share/${initial.shareToken}`
-      : ""
+type TabId = "overview" | "board" | "timeline" | "financials" | "risks" | "governance";
+const TABS: { id: TabId; label: string }[] = [
+  { id: "overview",    label: "Overview"    },
+  { id: "board",       label: "Board"       },
+  { id: "timeline",    label: "Timeline"    },
+  { id: "financials",  label: "Financials"  },
+  { id: "risks",       label: "Risks"       },
+  { id: "governance",  label: "Governance"  },
+];
+
+// ── Guardian Strip ────────────────────────────────────────────────────────────
+function GuardianStrip({ projectId }: { projectId: string }) {
+  const [insight, setInsight]     = useState<string | null>(null);
+  const [healthScore, setScore]   = useState<number | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState(false);
+  const [report, setReport]       = useState<any>(null);
+
+  useEffect(() => {
+    fetch(`/api/guardian/${projectId}`)
+      .then(r => r.json())
+      .then(data => {
+        setReport(data);
+        setScore(data.healthScore ?? null);
+        const topAlert = data.alerts?.[0] ?? data.criticalAlerts?.[0];
+        if (topAlert) setInsight(topAlert.detail ?? topAlert.title);
+        else if (data.recommendations?.[0]) setInsight(data.recommendations[0]);
+        else setInsight("Project is on track — no critical issues detected.");
+      })
+      .catch(() => setInsight(null))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  const hsColor = healthScore !== null
+    ? (healthScore >= 80 ? "#059669" : healthScore >= 60 ? "#D97706" : "#DC2626")
+    : "#94A3B8";
+
+  const criticalCount = report?.alerts?.filter((a: any) => a.level === "critical").length
+    ?? report?.criticalAlerts?.length ?? 0;
+
+  return (
+    <div style={{ background: criticalCount > 0 ? "#FEF9F9" : "#FAFBFC", borderBottom: "1px solid #E2E8F0" }}>
+      {/* Strip */}
+      <div style={{ padding: "9px 28px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 13 }}>🛡️</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#006D6B", textTransform: "uppercase", letterSpacing: "0.07em", flexShrink: 0 }}>Guardian AI</span>
+        {healthScore !== null && (
+          <span style={{ fontSize: 12, fontWeight: 800, color: hsColor, flexShrink: 0, minWidth: 24, textAlign: "center" }}>{healthScore}</span>
+        )}
+        <span style={{ fontSize: 12, color: loading ? "#CBD5E1" : criticalCount > 0 ? "#DC2626" : "#64748B", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {loading ? "Analyzing project…" : insight ?? ""}
+        </span>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ fontSize: 11, color: "#006D6B", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", flexShrink: 0, padding: 0 }}
+        >
+          {expanded ? "Hide ↑" : "Full analysis ↓"}
+        </button>
+      </div>
+
+      {/* Expanded panel */}
+      {expanded && report && (
+        <div style={{ padding: "14px 28px 18px", borderTop: "1px solid #F1F5F9" }}>
+          {/* Score row */}
+          {report.progressReal !== undefined && (
+            <div style={{ display: "flex", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+              {[
+                { label: "Health Score",    value: `${report.healthScore ?? "—"}` },
+                { label: "Real Progress",   value: `${Math.round(report.progressReal ?? 0)}%` },
+                { label: "On-Time Prob.",   value: `${report.onTrackProbability ?? "—"}%` },
+                { label: "Est. Delay",      value: report.estimatedDelay > 0 ? `+${report.estimatedDelay}d` : "None" },
+              ].map(m => (
+                <div key={m.label} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>{m.value}</div>
+                  <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600 }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Alerts */}
+          {(report.alerts ?? [...(report.criticalAlerts ?? []), ...(report.warningAlerts ?? [])]).slice(0, 4).map((a: any) => (
+            <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8, padding: "8px 12px", background: a.level === "critical" ? "#FEF2F2" : a.level === "warning" ? "#FFFBEB" : "#F8FAFC", borderRadius: 8 }}>
+              <span style={{ fontSize: 11, flexShrink: 0, marginTop: 1 }}>{a.level === "critical" ? "🔴" : a.level === "warning" ? "🟡" : "🔵"}</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A" }}>{a.title}</div>
+                {a.detail && <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{a.detail}</div>}
+              </div>
+            </div>
+          ))}
+
+          {/* Recommendations */}
+          {report.recommendations?.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Recommendations</div>
+              {report.recommendations.slice(0, 3).map((r: string, i: number) => (
+                <div key={i} style={{ fontSize: 12, color: "#475569", padding: "4px 0", display: "flex", gap: 8 }}>
+                  <span style={{ color: "#006D6B", fontWeight: 700, flexShrink: 0 }}>→</span>
+                  {r}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
-  const [copied, setCopied] = useState(false);
-  const [noteDrawer, setNoteDrawer] = useState<Feature | null>(null);
-  const [noteText, setNoteText] = useState("");
+}
 
+// ── Risks View ────────────────────────────────────────────────────────────────
+function RisksView({ project, canEdit }: { project: any; canEdit: boolean }) {
+  const [risks, setRisks]   = useState<Risk[]>(project.risks ?? []);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm]     = useState({ title: "", probability: 3, impact: 3, category: "Technical", mitigation: "" });
+  const [saving, setSaving] = useState(false);
+
+  const openRisks   = risks.filter(r => r.status === "OPEN").length;
+  const critRisks   = risks.filter(r => r.status === "OPEN" && r.probability * r.impact >= 15).length;
+  const highRisks   = risks.filter(r => r.status === "OPEN" && r.probability * r.impact >= 8 && r.probability * r.impact < 15).length;
+  const mitigated   = risks.filter(r => r.status === "MITIGATED").length;
+
+  const addRisk = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/risks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const newRisk = await res.json();
+      setRisks(r => [newRisk, ...r]);
+      setForm({ title: "", probability: 3, impact: 3, category: "Technical", mitigation: "" });
+      setAdding(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeStatus = async (riskId: string, newStatus: string) => {
+    setRisks(rs => rs.map(r => r.id === riskId ? { ...r, status: newStatus } : r));
+    await fetch(`/api/projects/${project.id}/risks/${riskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+  };
+
+  const sorted = [...risks].sort((a, b) => (b.probability * b.impact) - (a.probability * a.impact));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* Summary KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        {[
+          { label: "Open Risks",  value: openRisks,  color: openRisks  > 0 ? "#DC2626" : "#059669" },
+          { label: "Critical",    value: critRisks,  color: critRisks  > 0 ? "#DC2626" : "#059669" },
+          { label: "High",        value: highRisks,  color: highRisks  > 0 ? "#EA580C" : "#059669" },
+          { label: "Mitigated",   value: mitigated,  color: "#2563EB"                               },
+        ].map(k => (
+          <div key={k.label} style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 18px" }}>
+            <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{k.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: k.color, letterSpacing: "-1px" }}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Risk matrix (5×5) */}
+      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "20px 24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Risk Matrix</div>
+          <div style={{ display: "flex", gap: 14, fontSize: 11, color: "#64748B" }}>
+            {[{ color: "#DC2626", label: "Critical (≥15)" }, { color: "#EA580C", label: "High (8-14)" }, { color: "#D97706", label: "Medium (4-7)" }, { color: "#059669", label: "Low (<4)" }].map(l => (
+              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
+                {l.label}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "40px repeat(5, 1fr)", gap: 4 }}>
+          {/* Y-axis label */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-around", alignItems: "center" }}>
+            {[5,4,3,2,1].map(p => (
+              <div key={p} style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600 }}>{p}</div>
+            ))}
+          </div>
+          {/* Matrix cells */}
+          {[5,4,3,2,1].map(prob => (
+            [1,2,3,4,5].map(imp => {
+              const score = prob * imp;
+              const bg = score >= 15 ? "#FEF2F2" : score >= 8 ? "#FFF7ED" : score >= 4 ? "#FFFBEB" : "#F0FDF4";
+              const dotsHere = risks.filter(r => r.probability === prob && r.impact === imp && r.status === "OPEN");
+              return (
+                <div key={`${prob}-${imp}`} style={{ background: bg, borderRadius: 6, height: 44, display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 3, padding: 4, position: "relative" }}>
+                  {dotsHere.map(r => (
+                    <div key={r.id} title={r.title} style={{ width: 10, height: 10, borderRadius: "50%", background: RISK_SCORE_COLOR(score), border: "1.5px solid #fff", cursor: "default" }} />
+                  ))}
+                </div>
+              );
+            })
+          ))}
+        </div>
+        {/* X-axis */}
+        <div style={{ display: "grid", gridTemplateColumns: "40px repeat(5, 1fr)", gap: 4, marginTop: 4 }}>
+          <div />
+          {[1,2,3,4,5].map(n => <div key={n} style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600, textAlign: "center" }}>{n}</div>)}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingLeft: 40 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8" }}>← Probability</div>
+          <div style={{ fontSize: 10, color: "#94A3B8" }}>Impact →</div>
+        </div>
+      </div>
+
+      {/* Risk list */}
+      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ padding: "16px 22px", borderBottom: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Risk Register</div>
+          {canEdit && (
+            <button onClick={() => setAdding(a => !a)} style={{ fontSize: 12, fontWeight: 600, color: "#006D6B", background: "#F0FDFA", border: "1px solid #A7F3D0", padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
+              {adding ? "Cancel" : "+ Add Risk"}
+            </button>
+          )}
+        </div>
+
+        {/* Add form */}
+        {adding && (
+          <div style={{ padding: "16px 22px", background: "#F8FAFC", borderBottom: "1px solid #F1F5F9", display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Risk title…"
+              style={{ background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", color: "#0F172A" }}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              {[
+                { label: "Probability (1-5)", key: "probability", value: form.probability },
+                { label: "Impact (1-5)",      key: "impact",      value: form.impact      },
+              ].map(f => (
+                <div key={f.key}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{f.label}</div>
+                  <input
+                    type="number" min={1} max={5}
+                    value={f.value}
+                    onChange={e => setForm(prev => ({ ...prev, [f.key]: Number(e.target.value) }))}
+                    style={{ width: "100%", background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                  />
+                </div>
+              ))}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>Category</div>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: "100%", background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}>
+                  {["Technical","Resource","Budget","Schedule","Scope","External","Compliance","Other"].map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <textarea
+              value={form.mitigation}
+              onChange={e => setForm(f => ({ ...f, mitigation: e.target.value }))}
+              placeholder="Mitigation plan (optional)…"
+              rows={2}
+              style={{ background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", resize: "vertical", color: "#0F172A" }}
+            />
+            <button onClick={addRisk} disabled={saving} style={{ alignSelf: "flex-start", background: "#006D6B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Saving…" : "Add Risk"}
+            </button>
+          </div>
+        )}
+
+        {sorted.length === 0 ? (
+          <div style={{ padding: "40px 24px", textAlign: "center", color: "#94A3B8", fontSize: 13 }}>No risks logged yet.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {sorted.map((r, i) => {
+              const score = r.probability * r.impact;
+              return (
+                <div key={r.id} style={{ padding: "14px 22px", borderBottom: i < sorted.length - 1 ? "1px solid #F8FAFC" : "none", display: "flex", gap: 14, alignItems: "center", opacity: r.status === "CLOSED" ? 0.55 : 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: RISK_SCORE_COLOR(score), minWidth: 28, textAlign: "center" }}>{score}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", marginBottom: 2 }}>{r.title}</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: RISK_SCORE_COLOR(score), background: RISK_SCORE_BG(score), padding: "1px 7px", borderRadius: 10 }}>{RISK_SCORE_LABEL(score)}</span>
+                      {r.category && <span style={{ fontSize: 10, color: "#64748B", background: "#F1F5F9", padding: "1px 7px", borderRadius: 10 }}>{r.category}</span>}
+                      {r.ownerName && <span style={{ fontSize: 10, color: "#64748B" }}>Owner: {r.ownerName}</span>}
+                    </div>
+                    {r.mitigation && <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Mitigation: {r.mitigation}</div>}
+                  </div>
+                  {canEdit && r.status === "OPEN" && (
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => changeStatus(r.id, "MITIGATED")} style={{ fontSize: 11, color: "#D97706", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Mitigate</button>
+                      <button onClick={() => changeStatus(r.id, "CLOSED")}    style={{ fontSize: 11, color: "#059669", background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Close</button>
+                    </div>
+                  )}
+                  {r.status !== "OPEN" && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: r.status === "MITIGATED" ? "#D97706" : "#059669", background: r.status === "MITIGATED" ? "#FFFBEB" : "#ECFDF5", border: `1px solid ${r.status === "MITIGATED" ? "#FDE68A" : "#A7F3D0"}`, padding: "3px 10px", borderRadius: 20, flexShrink: 0 }}>{r.status}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function RoadmapClient({
+  project: initial, role, allProjects = [], allMembers = [], allDepartments = [], allResources = []
+}: {
+  project: Project; role: string;
+  allProjects?: { id: string; name: string }[];
+  allMembers?: { id: string; name?: string; email: string }[];
+  allResources?: { id: string; name: string; role: string; costPerHour: number }[];
+  allDepartments?: { id: string; name: string; color: string }[];
+}) {
+  const {
+    project, setProject, saving, projectStatus, setProjectStatus,
+    shareUrl, setCopied, copied, noteDrawer, setNoteDrawer, noteText, setNoteText,
+    statusChangeModal, setStatusChangeModal, updateFeature, updateSprint,
+    confirmStatusChange, toggleShare, openNote, saveNote,
+    addProjectDep, removeProjectDep, addFeatureDep, removeFeatureDep,
+    allF, totalPct, daysLeft,
+  } = useProject(initial);
+
+  const [view, setView]       = useState<TabId>("overview");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [search, setSearch]   = useState("");
   const canEdit = role === "ADMIN" || role === "MANAGER";
   const isAdmin = role === "ADMIN";
 
-  const updateFeature = useCallback(async (featureId: string, patch: Partial<Feature>) => {
-    setSaving(true);
-    setProject(p => ({
-      ...p,
-      sprints: p.sprints.map(s => ({
-        ...s,
-        features: s.features.map(f => f.id === featureId ? { ...f, ...patch } : f),
-      })),
-    }));
-    await fetch(`/api/features/${featureId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setTimeout(() => setSaving(false), 600);
+  // Support ?tab=xxx URL param for deep-linking from Command Center
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab") as TabId | null;
+    if (tab && TABS.some(t => t.id === tab)) setView(tab);
   }, []);
 
-  const updateSprint = useCallback(async (sprintId: string, patch: { status: SprintStatus }) => {
-    setSaving(true);
-    setProject(p => ({
-      ...p,
-      sprints: p.sprints.map(s => s.id === sprintId ? { ...s, ...patch } : s),
-    }));
-    await fetch(`/api/sprints/${sprintId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    setTimeout(() => setSaving(false), 600);
-  }, []);
-
-  const toggleShare = useCallback(async () => {
-    if (shareUrl) {
-      await fetch(`/api/projects/${project.id}/share`, { method: "DELETE" });
-      setShareUrl("");
-    } else {
-      const res = await fetch(`/api/projects/${project.id}/share`, { method: "POST" });
-      const data = await res.json();
-      setShareUrl(data.url);
-    }
-  }, [project.id, shareUrl]);
-
-  const openNote = (f: Feature) => { setNoteDrawer(f); setNoteText(f.notes ?? ""); };
-  const saveNote = async () => {
-    if (!noteDrawer) return;
-    await updateFeature(noteDrawer.id, { notes: noteText });
-    setNoteDrawer(null);
-  };
-
-  const addProjectDep = async (dependsOnId: string) => {
-    await fetch("/api/dependencies/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: project.id, dependsOnId }),
-    });
-    setProject(p => ({
-      ...p,
-      dependsOn: [...p.dependsOn, { id: Date.now().toString(), dependsOnId, dependsOn: { id: dependsOnId, name: allProjects.find(pr => pr.id === dependsOnId)?.name ?? "" } }],
-    }));
-  };
-
-  const removeProjectDep = async (dependsOnId: string) => {
-    await fetch("/api/dependencies/projects", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: project.id, dependsOnId }),
-    });
-    setProject(p => ({ ...p, dependsOn: p.dependsOn.filter(d => d.dependsOnId !== dependsOnId) }));
-  };
-
-  const addFeatureDep = async (featureId: string, dependsOnId: string) => {
-    await fetch("/api/dependencies/features", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ featureId, dependsOnId }),
-    });
-    setProject(p => ({
-      ...p,
-      sprints: p.sprints.map(s => ({
-        ...s,
-        features: s.features.map(f => f.id === featureId
-          ? { ...f, dependsOn: [...(f.dependsOn ?? []), { id: Date.now().toString(), dependsOnId }] }
-          : f),
-      })),
-    }));
-  };
-
-  const removeFeatureDep = async (featureId: string, dependsOnId: string) => {
-    await fetch("/api/dependencies/features", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ featureId, dependsOnId }),
-    });
-    setProject(p => ({
-      ...p,
-      sprints: p.sprints.map(s => ({
-        ...s,
-        features: s.features.map(f => f.id === featureId
-          ? { ...f, dependsOn: (f.dependsOn ?? []).filter(d => d.dependsOnId !== dependsOnId) }
-          : f),
-      })),
-    }));
-  };
-
-  const allF = project.sprints.flatMap(s =>
-    s.features.map(f => ({ ...f, sprintId: s.id, sprintNum: s.num, sprintName: s.name }))
-  );
-  const totalDone = allF.filter(f => f.status === "DONE").length;
-  const totalPct  = allF.length ? Math.round((totalDone / allF.length) * 100) : 0;
-
-  const phaseGroups: Record<number, { phase: Phase; sprints: Sprint[] }> = {};
+  const phaseGroups: Record<number, { phase: Phase; sprints: any[] }> = {};
   project.phases.forEach(ph => { phaseGroups[ph.num] = { phase: ph, sprints: [] }; });
   project.sprints.forEach((s, i) => {
     const phIdx = Math.floor(i / Math.ceil(project.sprints.length / Math.max(project.phases.length, 1)));
@@ -165,230 +402,196 @@ export default function RoadmapClient({ project: initial, role, allProjects = []
     if (ph && phaseGroups[ph.num]) phaseGroups[ph.num].sprints.push(s);
   });
 
-  const VIEWS = ["board", "backlog", "gantt", "metrics", "dependencies", "financials", "governance"] as const;
+  const ROLE_META: Record<string, { color: string; bg: string }> = {
+    ADMIN:   { color: "#006D6B", bg: "rgba(0,109,107,0.1)" },
+    MANAGER: { color: "#2563EB", bg: "rgba(37,99,235,0.1)" },
+    VIEWER:  { color: "#64748B", bg: "rgba(100,116,139,0.1)" },
+  };
+  const rm  = ROLE_META[role] ?? ROLE_META.VIEWER;
+  const psm = PROJECT_STATUS_META[projectStatus] ?? PROJECT_STATUS_META.ACTIVE;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080E1A", color: "#E2EBF6" }}>
-      <div style={{ background: "#0A1220", borderBottom: "1px solid #1A2E44", padding: "14px 32px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>{project.name}</div>
-          <div style={{ fontSize: 11, color: "#64748B" }}>
-            {project.startDate?.slice(0, 10)} → {project.endDate?.slice(0, 10)}
-            {project.dependsOn.length > 0 && (
-              <span style={{ marginLeft: 10, color: "#F97316" }}>
-                ⬡ depends on: {project.dependsOn.map(d => d.dependsOn.name).join(", ")}
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        *{box-sizing:border-box}
+        .tab-btn{padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all 0.15s}
+        .tab-btn.active{background:#fff;color:#0F172A;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+        .tab-btn:not(.active){background:transparent;color:#64748B}
+        .tab-btn:not(.active):hover{color:#0F172A;background:rgba(255,255,255,0.5)}
+        .progress-bar{height:5px;background:#F1F5F9;border-radius:3px;overflow:hidden}
+        .progress-fill{height:100%;border-radius:3px;transition:width 0.4s}
+        .feature-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#F8FAFC;border:1px solid #F1F5F9;transition:background 0.1s}
+        .feature-row:hover{background:#F1F5F9}
+        .sprint-card{background:#fff;border-radius:12px;border:1px solid #E2E8F0;overflow:hidden;transition:box-shadow 0.15s}
+        .sprint-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+        select.light{background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:8px;padding:8px 12px;color:#0F172A;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;width:100%}
+        select.light:focus{border-color:#006D6B}
+        .field-input{background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:8px;padding:9px 12px;color:#0F172A;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none}
+        .field-input:focus{border-color:#006D6B;background:#fff}
+        .status-select{border-radius:8px;font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;outline:none;border-width:1.5px;border-style:solid;}
+      `}</style>
+
+      <div style={{ minHeight: "100vh", background: "#F0F2F5", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+
+        {/* Sticky header */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", padding: "14px 28px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", position: "sticky", top: 0, zIndex: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.3px", marginBottom: 2 }}>{project.name}</div>
+            <div style={{ fontSize: 11, color: "#94A3B8", display: "flex", alignItems: "center", gap: 10 }}>
+              <span>{project.startDate?.slice(0,10)} → {project.endDate?.slice(0,10)}</span>
+              <span style={{ color: daysLeft < 0 ? "#DC2626" : daysLeft <= 7 ? "#D97706" : "#94A3B8", fontWeight: 600 }}>
+                {daysLeft >= 0 ? `${daysLeft}d left` : `${Math.abs(daysLeft)}d overdue`}
               </span>
-            )}
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 80, height: 4, background: "#1E3A5F", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: totalPct + "%", background: "linear-gradient(90deg,#007A73,#3B82F6)", borderRadius: 2, transition: "width 0.5s" }} />
+
+          {/* Progress */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 80, height: 5, background: "#F1F5F9", borderRadius: 3, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: totalPct + "%", background: "linear-gradient(90deg,#006D6B,#2563EB)", borderRadius: 3 }} />
+            </div>
+            <span style={{ fontSize: 12, color: "#006D6B", fontWeight: 700 }}>{totalPct}%</span>
           </div>
-          <span style={{ fontSize: 11, color: "#00C97A", fontFamily: "monospace" }}>{totalPct}%</span>
-        </div>
-        {canEdit && (
-          <button onClick={toggleShare} style={{ padding: "6px 14px", background: "#0F1827", border: "1px solid " + (shareUrl ? "#00C97A" : "#1E3A5F"), borderRadius: 7, fontSize: 11, color: shareUrl ? "#00C97A" : "#64748B", cursor: "pointer" }}>
-            {shareUrl ? "🔗 Shared" : "Share"}
-          </button>
-        )}
-        {shareUrl && (
-          <button onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ padding: "6px 14px", background: "#0F1827", border: "1px solid #1E3A5F", borderRadius: 7, fontSize: 11, color: "#64748B", cursor: "pointer" }}>
-            {copied ? "Copied!" : "Copy link"}
-          </button>
-        )}
-        {saving && <span style={{ fontSize: 10, color: "#00C97A", fontFamily: "monospace" }}>● saving</span>}
-        <span style={{ fontSize: 10, color: role === "ADMIN" ? "#F97316" : role === "MANAGER" ? "#3B82F6" : "#64748B", background: role === "ADMIN" ? "rgba(249,115,22,0.1)" : role === "MANAGER" ? "rgba(59,130,246,0.1)" : "rgba(100,116,139,0.1)", padding: "3px 8px", borderRadius: 4, fontWeight: 700 }}>
-          {role}
-        </span>
-        <div style={{ display: "flex", gap: 2, background: "#0F1827", borderRadius: 8, padding: 3 }}>
-          {VIEWS.map(v => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 500, background: view === v ? "#1E3A5F" : "transparent", color: view === v ? "#E2EBF6" : "#64748B", border: "none", cursor: "pointer" }}>
-              {v.charAt(0).toUpperCase() + v.slice(1)}
+
+          {canEdit && (
+            <button onClick={toggleShare} style={{ padding: "6px 14px", background: shareUrl ? "#ECFDF5" : "#F8FAFC", border: `1px solid ${shareUrl ? "#A7F3D0" : "#E2E8F0"}`, borderRadius: 8, fontSize: 11, color: shareUrl ? "#059669" : "#64748B", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
+              {shareUrl ? "🔗 Shared" : "Share"}
             </button>
-          ))}
-        </div>
-      </div>
+          )}
+          {shareUrl && (
+            <button onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ padding: "6px 14px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 11, color: "#64748B", cursor: "pointer", fontFamily: "inherit" }}>
+              {copied ? "Copied!" : "Copy link"}
+            </button>
+          )}
+          {saving && <span style={{ fontSize: 11, color: "#006D6B", fontWeight: 600 }}>● saving</span>}
+          <span style={{ fontSize: 10, fontWeight: 700, color: rm.color, background: rm.bg, padding: "3px 10px", borderRadius: 20 }}>{role}</span>
 
-      <div style={{ padding: "10px 32px", background: "#0A1220", borderBottom: "1px solid #1A2E44" }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search features…" style={{ background: "#0F1827", color: "#E2EBF6", border: "1px solid #1E3A5F", borderRadius: 6, padding: "5px 12px", fontSize: 12, outline: "none", width: 200 }} />
-      </div>
+          {canEdit ? (
+            <select
+              value={projectStatus}
+              onChange={e => setStatusChangeModal({ newStatus: e.target.value, note: "" })}
+              className="status-select"
+              style={{ background: psm.bg, color: psm.color, borderColor: psm.border }}
+            >
+              <option value="NOT_STARTED">Not Started</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PAUSED">Paused</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CLOSED">Closed</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
+          ) : (
+            <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: psm.bg, color: psm.color, border: `1px solid ${psm.border}` }}>{psm.label}</span>
+          )}
 
-      <div style={{ padding: "24px 32px" }}>
-        {view === "board"        && <BoardView phaseGroups={phaseGroups} expanded={expanded} setExpanded={setExpanded} updateFeature={updateFeature} updateSprint={updateSprint} canEdit={canEdit} search={search} onOpenNote={openNote} allF={allF} addFeatureDep={addFeatureDep} removeFeatureDep={removeFeatureDep} />}
-        {view === "backlog"      && <BacklogView allF={allF} search={search} updateFeature={updateFeature} canEdit={canEdit} onOpenNote={openNote} />}
-        {view === "gantt"        && <GanttView project={project} phaseGroups={phaseGroups} allF={allF} />}
-        {view === "metrics"      && <MetricsView project={project} allF={allF} phaseGroups={phaseGroups} />}
-        {view === "dependencies" && <DependenciesView project={project} allProjects={allProjects} allF={allF} canEdit={isAdmin} addProjectDep={addProjectDep} removeProjectDep={removeProjectDep} addFeatureDep={addFeatureDep} removeFeatureDep={removeFeatureDep} />}
-        {view === "financials"   && <FinancialsView projectId={project.id} canEdit={canEdit} />}
-        {view === "governance"   && <GovernanceView projectId={project.id} canEdit={canEdit} />}
-      </div>
-
-      {noteDrawer && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", justifyContent: "flex-end" }} onClick={() => setNoteDrawer(null)}>
-          <div style={{ width: 400, background: "#0D1929", borderLeft: "1px solid #1E3A5F", padding: 24, display: "flex", flexDirection: "column", gap: 16 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>Feature Notes</span>
-              <button onClick={() => setNoteDrawer(null)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: 18 }}>✕</button>
-            </div>
-            <div style={{ fontSize: 13, color: "#E2EBF6", fontWeight: 600 }}>{noteDrawer.title}</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <span style={{ fontSize: 10, color: STATUS_META[noteDrawer.status].color, background: STATUS_META[noteDrawer.status].bg, padding: "2px 8px", borderRadius: 4 }}>{STATUS_META[noteDrawer.status].label}</span>
-              <span style={{ fontSize: 10, color: PRIORITY_COLOR[noteDrawer.priority], background: PRIORITY_COLOR[noteDrawer.priority] + "18", padding: "2px 8px", borderRadius: 4 }}>{noteDrawer.priority}</span>
-            </div>
-            <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add notes, acceptance criteria, links…" rows={12} style={{ background: "#0A1220", color: "#E2EBF6", border: "1px solid #1E3A5F", borderRadius: 8, padding: "10px 14px", fontSize: 12, outline: "none", resize: "vertical", lineHeight: 1.6 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={saveNote} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg,#007A73,#0a9a90)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Save Notes</button>
-              <button onClick={() => setNoteDrawer(null)} style={{ padding: "10px 16px", background: "#1E3A5F", color: "#E2EBF6", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BoardView({ phaseGroups, expanded, setExpanded, updateFeature, updateSprint, canEdit, search, onOpenNote, allF, addFeatureDep, removeFeatureDep }: any) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      {Object.values(phaseGroups).map(({ phase: ph, sprints }: any) => {
-        if (!sprints.length) return null;
-        const phF = sprints.flatMap((s: any) => s.features);
-        const pct = phF.length ? Math.round((phF.filter((f: any) => f.status === "DONE").length / phF.length) * 100) : 0;
-        return (
-          <div key={ph.id}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-              <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg,${ph.accent}50,transparent)` }} />
-              <span style={{ color: ph.accent, fontSize: 10, fontWeight: 700, fontFamily: "monospace" }}>PHASE {ph.num}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{ph.sub || ph.label}</span>
-              <span style={{ fontSize: 10, color: ph.accent, background: ph.accent + "18", padding: "2px 8px", borderRadius: 4, fontFamily: "monospace" }}>{pct}%</span>
-              <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg,transparent,${ph.accent}50)` }} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))", gap: 14 }}>
-              {sprints.map((sprint: any) => (
-                <SprintCard key={sprint.id} sprint={sprint} accent={ph.accent} expanded={!!expanded[sprint.id]} onToggle={() => setExpanded((e: any) => ({ ...e, [sprint.id]: !e[sprint.id] }))} updateFeature={updateFeature} updateSprint={updateSprint} canEdit={canEdit} search={search} onOpenNote={onOpenNote} allF={allF} addFeatureDep={addFeatureDep} removeFeatureDep={removeFeatureDep} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function SprintCard({ sprint, accent, expanded, onToggle, updateFeature, updateSprint, canEdit, search, onOpenNote, allF, addFeatureDep, removeFeatureDep }: any) {
-  const sm = SPRINT_STATUS[sprint.status as SprintStatus];
-  const total = sprint.features.length;
-  const done  = sprint.features.filter((f: any) => f.status === "DONE").length;
-  const blocked = sprint.features.filter((f: any) => f.status === "BLOCKED").length;
-  const pct   = total ? Math.round((done / total) * 100) : 0;
-  const isAtRisk = blocked >= 2 || (blocked > 0 && sprint.status === "ACTIVE");
-  const visF  = sprint.features.filter((f: any) => !search || f.title.toLowerCase().includes(search.toLowerCase()));
-  const borderColor = sprint.status === "ACTIVE" ? accent : sprint.status === "DONE" ? "#00C97A" : "#1E3A5F";
-  const NEXT_STATUS: Record<SprintStatus, SprintStatus | null> = { UPCOMING: "ACTIVE", ACTIVE: null, DONE: null };
-
-  return (
-    <div style={{ background: "#0D1929", border: `1px solid ${isAtRisk ? "#EF444440" : "#1E3A5F"}`, borderTop: `3px solid ${isAtRisk ? "#EF4444" : borderColor}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px", cursor: "pointer" }} onClick={onToggle}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontFamily: "monospace", fontSize: 9, color: accent, fontWeight: 700 }}>{sprint.num}</span>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>{sprint.name}</span>
-              {isAtRisk && <span style={{ fontSize: 9, color: "#EF4444", background: "rgba(239,68,68,0.12)", padding: "1px 6px", borderRadius: 3, fontWeight: 700 }}>⚠ AT RISK</span>}
-            </div>
-            <p style={{ fontSize: 11, color: "#64748B", lineHeight: 1.5 }}>{sprint.goal}</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <span style={{ fontSize: 9, color: sm.color, background: sm.color + "18", padding: "2px 7px", borderRadius: 4, fontWeight: 600 }}>{sm.label}</span>
-            {canEdit && NEXT_STATUS[sprint.status as SprintStatus] && (
-              <button onClick={e => { e.stopPropagation(); updateSprint(sprint.id, { status: NEXT_STATUS[sprint.status as SprintStatus] }); }} style={{ fontSize: 9, color: "#64748B", background: "#0F1827", border: "1px solid #1E3A5F", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}>
-                → {NEXT_STATUS[sprint.status as SprintStatus]}
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 2, background: "#F1F5F9", borderRadius: 10, padding: 3 }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setView(t.id)} className={`tab-btn${view === t.id ? " active" : ""}`}>
+                {t.label}
               </button>
-            )}
+            ))}
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ fontSize: 10, color: "#64748B" }}>{done}/{total} {blocked > 0 && <span style={{ color: "#EF4444" }}>· {blocked} blocked</span>}</span>
-          <span style={{ fontFamily: "monospace", fontSize: 10, color: pct === 100 ? "#00C97A" : "#E2EBF6" }}>{pct}%</span>
-        </div>
-        <div style={{ height: 3, background: "#1E3A5F", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: pct + "%", background: pct === 100 ? "#00C97A" : `linear-gradient(90deg,${accent},${accent}bb)`, borderRadius: 2, transition: "width 0.4s" }} />
-        </div>
-        <span style={{ float: "right", fontSize: 9, color: "#475569", marginTop: 4 }}>{expanded ? "▲" : "▼"}</span>
-      </div>
-      {expanded && (
-        <div style={{ borderTop: "1px solid #1A2E44", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 5 }}>
-          {visF.map((f: any) => (
-            <FeatureRow key={f.id} feature={f} onUpdate={(patch: any) => updateFeature(f.id, patch)} canEdit={canEdit} onOpenNote={() => onOpenNote(f)} allF={allF} addFeatureDep={addFeatureDep} removeFeatureDep={removeFeatureDep} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
-function FeatureRow({ feature, onUpdate, canEdit, onOpenNote, allF, addFeatureDep, removeFeatureDep }: any) {
-  const sm = STATUS_META[feature.status as Status];
-  const [showDeps, setShowDeps] = useState(false);
-  const blockerTitles = (feature.dependsOn ?? []).map((d: any) => allF.find((f: any) => f.id === d.dependsOnId)?.title ?? d.dependsOnId);
-  const hasBlockers = blockerTitles.length > 0;
+        {/* Guardian strip — always visible */}
+        <GuardianStrip projectId={project.id} />
 
-  return (
-    <div style={{ borderRadius: 6, background: "#0A1220", border: "1px solid #1A2E44", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "4px 7px" }}>
-        <span style={{ fontSize: 11, color: sm.color, minWidth: 12 }}>{sm.icon}</span>
-        <span style={{ flex: 1, fontSize: 11, color: feature.status === "DONE" ? "#475569" : "#C8D8E8", textDecoration: feature.status === "DONE" ? "line-through" : "none" }}>{feature.title}</span>
-        {feature.module && <span style={{ fontSize: 9, color: "#475569", background: "#0F1827", padding: "1px 5px", borderRadius: 3 }}>{feature.module}</span>}
-        {hasBlockers && <span style={{ fontSize: 9, color: "#F97316" }}>⬡{blockerTitles.length}</span>}
-        {feature.notes && <span style={{ fontSize: 9, color: "#3B82F6" }}>📝</span>}
-        <span style={{ width: 5, height: 5, borderRadius: "50%", background: PRIORITY_COLOR[feature.priority as Priority], flexShrink: 0 }} />
-        {canEdit && <button onClick={() => setShowDeps(s => !s)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 10, padding: "0 2px" }}>⬡</button>}
-        <button onClick={onOpenNote} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✎</button>
-        {canEdit ? (
-          <select value={feature.status} onChange={e => onUpdate({ status: e.target.value })} style={{ background: sm.bg, color: sm.color, border: "1px solid " + sm.color + "60", borderRadius: 4, fontSize: 10, padding: "1px 3px", outline: "none", cursor: "pointer" }}>
-            {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
-          </select>
-        ) : (
-          <span style={{ fontSize: 9, color: sm.color, background: sm.bg, padding: "1px 6px", borderRadius: 3 }}>{sm.label}</span>
+        {/* Search bar for board */}
+        {view === "board" && (
+          <div style={{ padding: "10px 28px", background: "#fff", borderBottom: "1px solid #F1F5F9" }}>
+            <input className="field-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search features…" style={{ width: 220 }} />
+          </div>
         )}
+
+        {/* Tab content */}
+        <div style={{ padding: "24px 28px" }}>
+          {view === "overview" && (
+            <ErrorBoundary name="Overview">
+              <OverviewView project={project} allF={allF} allMembers={allMembers} allDepartments={allDepartments} allResources={allResources} canEdit={canEdit} setProject={setProject} />
+            </ErrorBoundary>
+          )}
+          {view === "board" && (
+            <ErrorBoundary name="Board">
+              <BoardView phaseGroups={phaseGroups} expanded={expanded} setExpanded={setExpanded} updateFeature={updateFeature} updateSprint={updateSprint} canEdit={canEdit} search={search} onOpenNote={openNote} allF={allF} addFeatureDep={addFeatureDep} removeFeatureDep={removeFeatureDep} projectStart={project.startDate} projectEnd={project.endDate} />
+            </ErrorBoundary>
+          )}
+          {view === "timeline" && <TimelineView project={project} phaseGroups={phaseGroups} allF={allF} />}
+          {view === "financials" && <FinancialsView projectId={project.id} canEdit={canEdit} />}
+          {view === "risks" && <RisksView project={project} canEdit={canEdit} />}
+          {view === "governance" && <GovernanceView projectId={project.id} canEdit={canEdit} />}
+        </div>
       </div>
-      {showDeps && canEdit && (
-        <div style={{ padding: "8px 12px", borderTop: "1px solid #1A2E44", background: "#060E18" }}>
-          <div style={{ fontSize: 10, color: "#64748B", marginBottom: 6 }}>Depends on:</div>
-          {(feature.dependsOn ?? []).map((d: any, i: number) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: "#F97316" }}>⬡</span>
-              <span style={{ fontSize: 11, flex: 1, color: "#C8D8E8" }}>{blockerTitles[i]}</span>
-              <button onClick={() => removeFeatureDep(feature.id, d.dependsOnId)} style={{ fontSize: 9, color: "#EF4444", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+
+      {/* Note drawer */}
+      {noteDrawer && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 100, display: "flex", justifyContent: "flex-end" }} onClick={() => setNoteDrawer(null)}>
+          <div style={{ width: 420, background: "#fff", borderLeft: "1px solid #E2E8F0", padding: 28, display: "flex", flexDirection: "column", gap: 16, boxShadow: "-4px 0 24px rgba(0,0,0,0.08)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>Feature Notes</span>
+              <button onClick={() => setNoteDrawer(null)} style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: 18 }}>✕</button>
             </div>
-          ))}
-          <select onChange={e => { if (e.target.value) { addFeatureDep(feature.id, e.target.value); e.target.value = ""; } }} style={{ background: "#0F1827", color: "#E2EBF6", border: "1px solid #1E3A5F", borderRadius: 4, fontSize: 10, padding: "3px 6px", outline: "none", width: "100%", marginTop: 4 }}>
-            <option value="">+ Add dependency…</option>
-            {allF.filter((f: any) => f.id !== feature.id && !(feature.dependsOn ?? []).some((d: any) => d.dependsOnId === f.id)).map((f: any) => (
-              <option key={f.id} value={f.id}>{f.sprintNum} — {f.title}</option>
-            ))}
-          </select>
+            <div style={{ fontSize: 14, color: "#0F172A", fontWeight: 600 }}>{noteDrawer.title}</div>
+            <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add notes, acceptance criteria, links…" rows={12} style={{ background: "#F8FAFC", color: "#0F172A", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 13, outline: "none", resize: "vertical", lineHeight: 1.6, fontFamily: "inherit" }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveNote} style={{ flex: 1, padding: "10px", background: "#006D6B", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save Notes</button>
+              <button onClick={() => setNoteDrawer(null)} style={{ padding: "10px 16px", background: "#F8FAFC", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+
+      {/* Status change modal */}
+      {statusChangeModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", marginBottom: 6 }}>
+              Change status to "{PROJECT_STATUS_META[statusChangeModal.newStatus]?.label}"
+            </div>
+            <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 20 }}>
+              Add a note explaining why — visible to Guardian AI and the team.
+            </div>
+            <textarea
+              value={statusChangeModal.note}
+              onChange={e => setStatusChangeModal(s => s ? { ...s, note: e.target.value } : null)}
+              placeholder={
+                statusChangeModal.newStatus === "PAUSED"   ? "Why is this project paused?" :
+                statusChangeModal.newStatus === "CLOSED"   ? "Why is this project being closed?" :
+                statusChangeModal.newStatus === "ARCHIVED" ? "Archiving reason?" :
+                "Reason for status change…"
+              }
+              rows={4}
+              style={{ width: "100%", background: "#F8FAFC", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", color: "#0F172A", marginBottom: 16 }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={confirmStatusChange} style={{ flex: 1, padding: "10px", background: "#006D6B", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Confirm</button>
+              <button onClick={() => setStatusChangeModal(null)} style={{ padding: "10px 16px", background: "#F8FAFC", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-function GanttView({ project, phaseGroups, allF }: any) {
+// ── Timeline (Gantt) ──────────────────────────────────────────────────────────
+function TimelineView({ project, phaseGroups }: any) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const start = new Date(project.startDate).getTime();
   const end   = new Date(project.endDate).getTime();
   const total = end - start;
 
   return (
-    <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid #1A2E44", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, fontWeight: 700 }}>Timeline</span>
-        <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#64748B" }}>
-          {[{ color: "#00C97A", label: "Done" }, { color: "#3B82F6", label: "Active" }, { color: "#1E3A5F", label: "Upcoming" }, { color: "#EF4444", label: "Blocked" }].map(l => (
-            <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />{l.label}
+    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Timeline</span>
+        <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+          {[{ color: "#059669", label: "Done" }, { color: "#2563EB", label: "Active" }, { color: "#CBD5E1", label: "Upcoming" }, { color: "#DC2626", label: "Blocked" }].map(l => (
+            <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
+              <span style={{ color: "#64748B", fontWeight: 500 }}>{l.label}</span>
             </div>
           ))}
         </div>
@@ -397,8 +600,8 @@ function GanttView({ project, phaseGroups, allF }: any) {
         <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, marginBottom: 12 }}>
           <div />
           <div style={{ position: "relative", height: 20 }}>
-            {[0, 25, 50, 75, 100].map(pct => (
-              <div key={pct} style={{ position: "absolute", left: pct + "%", transform: "translateX(-50%)", fontSize: 9, color: "#475569", fontFamily: "monospace" }}>
+            {[0,25,50,75,100].map(pct => (
+              <div key={pct} style={{ position: "absolute", left: pct + "%", transform: "translateX(-50%)", fontSize: 9, color: "#CBD5E1", fontFamily: "monospace" }}>
                 {new Date(start + (total * pct / 100)).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
               </div>
             ))}
@@ -406,9 +609,9 @@ function GanttView({ project, phaseGroups, allF }: any) {
         </div>
         {Object.values(phaseGroups).map(({ phase: ph, sprints }: any) => (
           <div key={ph.id} style={{ marginBottom: 24 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: ph.accent, fontFamily: "monospace" }}>PHASE {ph.num} — {ph.sub || ph.label}</div>
-              <div style={{ height: 2, background: ph.accent + "30", borderRadius: 1 }} />
+            <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: ph.accent }}>PHASE {ph.num} — {ph.sub || ph.label}</div>
+              <div style={{ height: 1, background: ph.accent + "30" }} />
             </div>
             {sprints.map((s: any) => {
               const sStart = s.startDate ? new Date(s.startDate).getTime() : start;
@@ -418,228 +621,27 @@ function GanttView({ project, phaseGroups, allF }: any) {
               const done   = s.features.filter((f: any) => f.status === "DONE").length;
               const blk    = s.features.filter((f: any) => f.status === "BLOCKED").length;
               const pct    = s.features.length ? Math.round((done / s.features.length) * 100) : 0;
-              const isExp  = !!expanded[s.id];
-              const barColor = s.status === "DONE" ? "#00C97A" : blk > 0 ? "#EF4444" : s.status === "ACTIVE" ? ph.accent : "#1E3A5F";
-              const byModule: Record<string, any[]> = {};
-              s.features.forEach((f: any) => { const m = f.module ?? "General"; if (!byModule[m]) byModule[m] = []; byModule[m].push(f); });
+              const barColor = s.status === "DONE" ? "#059669" : blk > 0 ? "#DC2626" : s.status === "ACTIVE" ? ph.accent : "#CBD5E1";
               return (
-                <div key={s.id} style={{ marginBottom: 4 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center", marginBottom: 2 }}>
+                <div key={s.id} style={{ marginBottom: 6 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button onClick={() => setExpanded(e => ({ ...e, [s.id]: !e[s.id] }))} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: 10, padding: 0, width: 14 }}>{isExp ? "▼" : "▶"}</button>
-                      <span style={{ fontFamily: "monospace", fontSize: 9, color: ph.accent }}>{s.num}</span>
-                      <span style={{ fontSize: 11, color: "#C8D8E8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                      <button onClick={() => setExpanded(e => ({ ...e, [s.id]: !e[s.id] }))} style={{ background: "none", border: "none", color: "#CBD5E1", cursor: "pointer", fontSize: 10, padding: 0, width: 14 }}>{expanded[s.id] ? "▼" : "▶"}</button>
+                      <span style={{ fontFamily: "monospace", fontSize: 9, color: ph.accent, fontWeight: 700 }}>{s.num}</span>
+                      <span style={{ fontSize: 11, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                     </div>
-                    <div style={{ position: "relative", height: 28, background: "#0A1220", borderRadius: 6, overflow: "hidden", cursor: "pointer" }} onClick={() => setExpanded(e => ({ ...e, [s.id]: !e[s.id] }))}>
-                      <div style={{ position: "absolute", left: `${Math.max(0, Math.min(left, 95))}%`, width: `${Math.max(3, Math.min(width, 100 - left))}%`, height: "100%", background: `linear-gradient(90deg,${barColor},${barColor}bb)`, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px", fontSize: 10, color: "#fff", fontFamily: "monospace" }}>
-                        <span>{pct}%</span>{blk > 0 && <span style={{ color: "#FCA5A5" }}>⚠ {blk}</span>}
+                    <div style={{ position: "relative", height: 28, background: "#F8FAFC", borderRadius: 8, overflow: "hidden", border: "1px solid #F1F5F9" }}>
+                      <div style={{ position: "absolute", left: `${Math.max(0, Math.min(left, 95))}%`, width: `${Math.max(3, Math.min(width, 100 - left))}%`, height: "100%", background: barColor, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px", fontSize: 10, color: "#fff", fontWeight: 700 }}>
+                        <span>{pct}%</span>{blk > 0 && <span>⚠ {blk}</span>}
                       </div>
                     </div>
                   </div>
-                  {isExp && (
-                    <div style={{ marginLeft: 20, marginBottom: 8 }}>
-                      {Object.entries(byModule).map(([module, features]: any) => (
-                        <div key={module} style={{ marginBottom: 6 }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center", marginBottom: 2 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 14 }}>
-                              <span style={{ fontSize: 9, color: "#475569", background: "#0F1827", padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>📁 {module}</span>
-                              <span style={{ fontSize: 9, color: "#475569" }}>{features.filter((f: any) => f.status === "DONE").length}/{features.length}</span>
-                            </div>
-                            <div style={{ height: 1, background: "#1A2E44" }} />
-                          </div>
-                          {features.map((f: any) => {
-                            const fColor = f.status === "DONE" ? "#00C97A" : f.status === "BLOCKED" ? "#EF4444" : f.status === "IN_PROGRESS" ? "#3B82F6" : "#475569";
-                            const fIcon  = f.status === "DONE" ? "✓" : f.status === "BLOCKED" ? "✕" : f.status === "IN_PROGRESS" ? "◐" : "○";
-                            return (
-                              <div key={f.id} style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 12, alignItems: "center", marginBottom: 3 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 28 }}>
-                                  <span style={{ fontSize: 10, color: fColor }}>{fIcon}</span>
-                                  <span style={{ fontSize: 10, color: f.status === "DONE" ? "#475569" : "#94A3B8", textDecoration: f.status === "DONE" ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</span>
-                                  {(f.dependsOn?.length ?? 0) > 0 && <span style={{ fontSize: 8, color: "#F97316" }}>⬡</span>}
-                                </div>
-                                <div style={{ position: "relative", height: 18, background: "#060E18", borderRadius: 4, overflow: "hidden" }}>
-                                  <div style={{ position: "absolute", left: `${Math.max(0, Math.min(left, 95))}%`, width: `${Math.max(1, Math.min(width, 100 - left))}%`, height: "100%", background: fColor + "40", borderLeft: `2px solid ${fColor}`, borderRadius: 3, display: "flex", alignItems: "center", paddingLeft: 6, fontSize: 9, color: fColor, fontFamily: "monospace" }}>
-                                    <span style={{ fontSize: 8, color: PRIORITY_COLOR[f.priority as Priority], marginRight: 4 }}>●</span>{f.priority}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function BacklogView({ allF, search, updateFeature, canEdit, onOpenNote }: any) {
-  const [groupBy, setGroup] = useState<"sprint" | "status" | "module" | "priority">("sprint");
-  const filtered = allF.filter((f: any) => !search || f.title.toLowerCase().includes(search.toLowerCase()));
-  const grouped: Record<string, any[]> = {};
-  filtered.forEach((f: any) => {
-    const key = groupBy === "sprint" ? (f.sprintNum + " — " + f.sprintName) : groupBy === "status" ? STATUS_META[f.status as Status].label : groupBy === "module" ? (f.module ?? "Other") : f.priority;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(f);
-  });
-  return (
-    <div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, alignItems: "center" }}>
-        <span style={{ fontSize: 11, color: "#64748B" }}>Group:</span>
-        {(["sprint", "status", "module", "priority"] as const).map(g => (
-          <button key={g} onClick={() => setGroup(g)} style={{ padding: "4px 10px", borderRadius: 5, fontSize: 11, background: groupBy === g ? "#1E3A5F" : "#0F1827", color: groupBy === g ? "#E2EBF6" : "#64748B", border: "1px solid #1E3A5F", cursor: "pointer" }}>
-            {g.charAt(0).toUpperCase() + g.slice(1)}
-          </button>
-        ))}
-        <span style={{ fontSize: 11, color: "#64748B", marginLeft: "auto" }}>{filtered.length} features</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {Object.entries(grouped).map(([group, features]) => (
-          <div key={group} style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ padding: "9px 16px", background: "#0A1220", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #1A2E44" }}>
-              <span style={{ fontWeight: 600, fontSize: 13 }}>{group}</span>
-              <span style={{ fontSize: 11, color: "#64748B", background: "#0F1827", padding: "1px 7px", borderRadius: 4 }}>{features.length}</span>
-            </div>
-            <div style={{ padding: "8px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
-              {features.map((f: any) => <FeatureRow key={f.id} feature={f} onUpdate={(patch: any) => updateFeature(f.id, patch)} canEdit={canEdit} onOpenNote={() => onOpenNote(f)} allF={allF} addFeatureDep={() => {}} removeFeatureDep={() => {}} />)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DependenciesView({ project, allProjects, allF, canEdit, addProjectDep, removeProjectDep, addFeatureDep, removeFeatureDep }: any) {
-  const blockedFeatures = allF.filter((f: any) => (f.dependsOn ?? []).length > 0);
-  const availableProjects = allProjects.filter((p: any) => p.id !== project.id && !project.dependsOn.some((d: any) => d.dependsOnId === p.id));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 12, padding: "20px 24px" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#E2EBF6", marginBottom: 16 }}>⬡ Project Dependencies</div>
-        {project.dependsOn.length === 0 ? <div style={{ fontSize: 12, color: "#475569", fontStyle: "italic" }}>No project dependencies set.</div> : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-            {project.dependsOn.map((d: any) => (
-              <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#0A1220", border: "1px solid #1E3A5F", borderRadius: 8, padding: "10px 14px" }}>
-                <span style={{ color: "#F97316" }}>⬡</span>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{d.dependsOn.name}</span>
-                {canEdit && <button onClick={() => removeProjectDep(d.dependsOnId)} style={{ fontSize: 11, color: "#EF4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Remove</button>}
-              </div>
-            ))}
-          </div>
-        )}
-        {canEdit && availableProjects.length > 0 && (
-          <select onChange={e => { if (e.target.value) { addProjectDep(e.target.value); e.target.value = ""; } }} style={{ background: "#0F1827", color: "#E2EBF6", border: "1px solid #1E3A5F", borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", width: "100%" }}>
-            <option value="">+ Add project dependency…</option>
-            {availableProjects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        )}
-      </div>
-      <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 12, padding: "20px 24px" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#E2EBF6", marginBottom: 16 }}>Feature Dependencies <span style={{ fontSize: 11, color: "#64748B", fontWeight: 400 }}>— {blockedFeatures.length} with dependencies</span></div>
-        {blockedFeatures.length === 0 ? <div style={{ fontSize: 12, color: "#475569", fontStyle: "italic" }}>No feature dependencies. Open Board view and click ⬡.</div> : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {blockedFeatures.map((f: any) => {
-              const blockers = (f.dependsOn ?? []).map((d: any) => ({ dep: d, blocker: allF.find((ff: any) => ff.id === d.dependsOnId) }));
-              const allDone = blockers.every((b: any) => b.blocker?.status === "DONE");
-              return (
-                <div key={f.id} style={{ background: "#0A1220", border: `1px solid ${allDone ? "#1E3A5F" : "#F9731630"}`, borderRadius: 8, padding: "12px 14px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, color: STATUS_META[f.status].color }}>{STATUS_META[f.status].icon}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{f.title}</span>
-                    {!allDone && <span style={{ fontSize: 9, color: "#F97316", fontWeight: 700 }}>WAITING</span>}
-                    {allDone  && <span style={{ fontSize: 9, color: "#00C97A", fontWeight: 700 }}>UNBLOCKED</span>}
-                  </div>
-                  <div style={{ paddingLeft: 20 }}>
-                    {blockers.map(({ dep, blocker }: any) => (
-                      <div key={dep.dependsOnId} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 9, color: "#475569" }}>needs →</span>
-                        <span style={{ fontSize: 10, color: blocker?.status === "DONE" ? "#00C97A" : "#F97316" }}>{blocker?.status === "DONE" ? "✓" : "◐"}</span>
-                        <span style={{ fontSize: 11, flex: 1, color: "#94A3B8" }}>{blocker?.title ?? dep.dependsOnId}</span>
-                        {canEdit && <button onClick={() => removeFeatureDep(f.id, dep.dependsOnId)} style={{ fontSize: 9, color: "#EF4444", background: "none", border: "none", cursor: "pointer" }}>✕</button>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 12, padding: "20px 24px" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#E2EBF6", marginBottom: 16 }}>Impact Analysis</div>
-        {(() => {
-          const bc = allF.filter((f: any) => (f.dependsOn ?? []).some((d: any) => { const b = allF.find((ff: any) => ff.id === d.dependsOnId); return b && b.status !== "DONE"; })).length;
-          const cc = allF.filter((f: any) => f.priority === "CRITICAL" && (f.dependsOn ?? []).some((d: any) => { const b = allF.find((ff: any) => ff.id === d.dependsOnId); return b && b.status !== "DONE"; })).length;
-          return (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-              {[{ label: "Waiting on dep", value: bc, color: bc > 0 ? "#F97316" : "#00C97A" }, { label: "Critical blocked", value: cc, color: cc > 0 ? "#EF4444" : "#00C97A" }, { label: "Project deps", value: project.dependsOn.length, color: "#E2EBF6" }].map(k => (
-                <div key={k.label} style={{ background: "#0A1220", border: "1px solid #1E3A5F", borderRadius: 8, padding: "14px 16px", textAlign: "center" }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "monospace" }}>{k.value}</div>
-                  <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>{k.label}</div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-  );
-}
-
-function MetricsView({ project, allF, phaseGroups }: any) {
-  const byStatus = { DONE: 0, IN_PROGRESS: 0, TODO: 0, BLOCKED: 0 };
-  allF.forEach((f: any) => { (byStatus as any)[f.status]++; });
-  const total = allF.length;
-  const pct   = total ? Math.round((byStatus.DONE / total) * 100) : 0;
-  const activeSprint = project.sprints.find((s: any) => s.status === "ACTIVE");
-  const atRiskSprints = project.sprints.filter((s: any) => { const b = s.features.filter((f: any) => f.status === "BLOCKED").length; return b >= 2 || (b > 0 && s.status === "ACTIVE"); });
-  const byModule: Record<string, { done: number; total: number }> = {};
-  allF.forEach((f: any) => { const m = f.module ?? "Other"; if (!byModule[m]) byModule[m] = { done: 0, total: 0 }; byModule[m].total++; if (f.status === "DONE") byModule[m].done++; });
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 10 }}>
-        {[{ label: "Total Features", value: total, color: "#E2EBF6" }, { label: "Done", value: `${byStatus.DONE} (${pct}%)`, color: "#00C97A" }, { label: "In Progress", value: byStatus.IN_PROGRESS, color: "#3B82F6" }, { label: "Blocked", value: byStatus.BLOCKED, color: "#EF4444" }, { label: "Sprints", value: project.sprints.length, color: "#E2EBF6" }, { label: "At Risk", value: atRiskSprints.length, color: atRiskSprints.length > 0 ? "#EF4444" : "#00C97A" }].map(k => (
-          <div key={k.label} style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 10, color: "#64748B", marginBottom: 6 }}>{k.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: k.color, fontFamily: "monospace" }}>{k.value}</div>
-          </div>
-        ))}
-      </div>
-      {atRiskSprints.length > 0 && (
-        <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "14px 18px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#EF4444", marginBottom: 10 }}>⚠ SPRINTS AT RISK</div>
-          {atRiskSprints.map((s: any) => { const b = s.features.filter((f: any) => f.status === "BLOCKED").length; return (<div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><span style={{ fontFamily: "monospace", fontSize: 11, color: "#EF4444" }}>{s.num}</span><span style={{ fontSize: 12 }}>{s.name}</span><span style={{ fontSize: 10, color: "#EF4444" }}>{b} blocked</span></div>); })}
-        </div>
-      )}
-      <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 10, padding: "18px 22px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#E2EBF6", marginBottom: 14, letterSpacing: "0.05em" }}>PHASE PROGRESS</div>
-        {Object.values(phaseGroups).map(({ phase: ph, sprints }: any) => { const phF = sprints.flatMap((s: any) => s.features); const phDone = phF.filter((f: any) => f.status === "DONE").length; const phPct = phF.length ? Math.round((phDone / phF.length) * 100) : 0; return (<div key={ph.id} style={{ marginBottom: 12 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span style={{ fontSize: 12, color: ph.accent, fontWeight: 600 }}>Phase {ph.num} — {ph.sub || ph.label}</span><span style={{ fontFamily: "monospace", fontSize: 11, color: phPct === 100 ? "#00C97A" : "#E2EBF6" }}>{phDone}/{phF.length} · {phPct}%</span></div><div style={{ height: 6, background: "#1E3A5F", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: phPct + "%", background: phPct === 100 ? "#00C97A" : `linear-gradient(90deg,${ph.accent},${ph.accent}bb)`, borderRadius: 3, transition: "width 0.5s" }} /></div></div>); })}
-      </div>
-      <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 10, padding: "18px 22px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#E2EBF6", marginBottom: 14, letterSpacing: "0.05em" }}>MODULE BREAKDOWN</div>
-        {Object.entries(byModule).sort((a, b) => b[1].total - a[1].total).map(([mod, c]) => { const p = c.total ? Math.round((c.done / c.total) * 100) : 0; return (<div key={mod} style={{ display: "grid", gridTemplateColumns: "120px 1fr 60px 50px", alignItems: "center", gap: 10, marginBottom: 8 }}><span style={{ fontSize: 11 }}>{mod}</span><div style={{ height: 5, background: "#1E3A5F", borderRadius: 2, overflow: "hidden" }}><div style={{ height: "100%", width: p + "%", background: p === 100 ? "#00C97A" : "#007A73", borderRadius: 2 }} /></div><span style={{ fontSize: 10, color: "#64748B", fontFamily: "monospace" }}>{c.done}/{c.total}</span><span style={{ fontSize: 10, color: p === 100 ? "#00C97A" : "#E2EBF6", fontFamily: "monospace" }}>{p}%</span></div>); })}
-      </div>
-      {activeSprint && (
-        <div style={{ background: "#0D1929", border: "1px solid #3B82F6", borderRadius: 10, padding: "18px 22px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#3B82F6" }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6" }}>ACTIVE SPRINT</span>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{activeSprint.num} — {activeSprint.name}</span>
-          </div>
-          <p style={{ fontSize: 11, color: "#64748B", marginBottom: 14 }}>{activeSprint.goal}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-            {(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"] as Status[]).map(st => { const n = activeSprint.features.filter((f: any) => f.status === st).length; const m = STATUS_META[st]; return (<div key={st} style={{ background: "#0A1220", border: `1px solid ${m.color}30`, borderRadius: 8, padding: "10px 12px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: m.color, fontFamily: "monospace" }}>{n}</div><div style={{ fontSize: 10, color: "#64748B", marginTop: 2 }}>{m.label}</div></div>); })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

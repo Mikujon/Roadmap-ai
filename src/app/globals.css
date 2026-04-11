@@ -1,26 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --bg:       #F5F4F0;
+  --surface:  #FFFFFF;
+  --surface2: #EFEDE8;
+
+  /* Borders */
+  --border:   #E2DFD8;
+  --border2:  #CBC8C0;
+
+  /* Text */
+  --text:     #111110;
+  --text2:    #6F6D65;
+  --text3:    #A8A59D;
+
+  /* Status — bold & unmistakable */
+  --red:            #E5291A;
+  --red-bg:         #FEF2F1;
+  --red-border:     #F9B8B3;
+  --red-text:       #991008;
+
+  --amber:          #D97708;
+  --amber-bg:       #FFFBEB;
+  --amber-border:   #FCD34D;
+  --amber-text:     #92400E;
+
+  --green:          #16A34A;
+  --green-bg:       #F0FDF4;
+  --green-border:   #86EFAC;
+  --green-text:     #14532D;
+
+  --blue:           #2563EB;
+  --blue-bg:        #EFF6FF;
+  --blue-border:    #93C5FD;
+  --blue-text:      #1E3A8A;
+
+  --purple:         #7C3AED;
+  --purple-bg:      #F5F3FF;
+  --purple-border:  #C4B5FD;
+  --purple-text:    #4C1D95;
+
+  --teal:           #0891B2;
+  --teal-bg:        #ECFEFF;
+  --teal-border:    #67E8F9;
+  --teal-text:      #164E63;
+
+  --guardian:       #059669;
+
+  /* Urgency highlights */
+  --urgent-glow: rgba(229,41,26,.08);
+  --warn-glow:   rgba(217,119,8,.06);
+  --ok-glow:     rgba(22,163,74,.06);
+
+  /* Layout */
+  --sidebar: 216px;
+  --topbar:  48px;
+  --radius:  8px;
+  --radius-lg: 12px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Guardian pulsing dot */
+.g-dot-pulse { animation: pulse-dot 2s infinite; }
+
+/* Fade-up for page transitions */
+.fade-up { animation: fadeUp .18s ease; }
