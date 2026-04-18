@@ -12,7 +12,7 @@ SELECT
   COUNT(*)                                               AS total_projects,
   COUNT(*) FILTER (WHERE p.status = 'ACTIVE')            AS active_projects,
   COUNT(*) FILTER (WHERE p.status = 'COMPLETED')         AS completed_projects,
-  COUNT(*) FILTER (WHERE p.status = 'ON_HOLD')           AS on_hold_projects,
+  COUNT(*) FILTER (WHERE p.status = 'PAUSED')            AS on_hold_projects,
   COUNT(*) FILTER (WHERE p.status = 'CLOSED')            AS closed_projects,
   COALESCE(SUM(p."budgetTotal"), 0)                      AS total_budget,
   COALESCE(AVG(gr."healthScore"), 0)::int                AS avg_health_score,
@@ -137,6 +137,8 @@ CREATE INDEX ON domain_events (type,             "occurredAt" DESC);
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'domain_events_unpartitioned') THEN
+    -- Drop FK before dropping the referenced table
+    ALTER TABLE outbox_events DROP CONSTRAINT IF EXISTS "outbox_events_domainEventId_fkey";
     INSERT INTO domain_events
       SELECT * FROM domain_events_unpartitioned
       ON CONFLICT DO NOTHING;

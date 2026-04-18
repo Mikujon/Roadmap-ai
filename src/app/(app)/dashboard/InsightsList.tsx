@@ -23,8 +23,8 @@ export default function InsightsList({ insights }: { insights: Insight[] }) {
           >
             <span style={{ color: m.dot, fontSize: 8, marginTop: 4, flexShrink: 0 }}>●</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{ins.title}</div>
-              <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{ins.detail}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#18170F" }}>{ins.title}</div>
+              <div style={{ fontSize: 11, color: "#5C5A52", marginTop: 2 }}>{ins.detail}</div>
             </div>
             {ins.projectId && <span style={{ fontSize: 11, color: m.color, fontWeight: 600, flexShrink: 0 }}>View →</span>}
           </div>

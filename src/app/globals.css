@@ -1,64 +1,64 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Surfaces */
-  --bg:       #F5F4F0;
+  /* Surfaces — warm off-white */
+  --bg:       #F8F7F3;
+  --bg2:      #F0EEE8;
   --surface:  #FFFFFF;
-  --surface2: #EFEDE8;
+  --surface2: #F4F2EC;
 
   /* Borders */
-  --border:   #E2DFD8;
-  --border2:  #CBC8C0;
+  --border:   #E5E2D9;
+  --border2:  #CCC9BF;
 
   /* Text */
-  --text:     #111110;
-  --text2:    #6F6D65;
-  --text3:    #A8A59D;
+  --text:     #18170F;
+  --text2:    #5C5A52;
+  --text3:    #9E9C93;
 
-  /* Status — bold & unmistakable */
-  --red:            #E5291A;
-  --red-bg:         #FEF2F1;
-  --red-border:     #F9B8B3;
-  --red-text:       #991008;
+  /* Status */
+  --red:            #DC2626;
+  --red-bg:         #FEF2F2;
+  --red-border:     #FECACA;
+  --red-text:       #DC2626;
 
-  --amber:          #D97708;
+  --amber:          #D97706;
   --amber-bg:       #FFFBEB;
-  --amber-border:   #FCD34D;
-  --amber-text:     #92400E;
+  --amber-border:   #FDE68A;
+  --amber-text:     #B45309;
 
-  --green:          #16A34A;
+  --green:          #059669;
   --green-bg:       #F0FDF4;
-  --green-border:   #86EFAC;
-  --green-text:     #14532D;
+  --green-border:   #BBF7D0;
+  --green-text:     #15803D;
 
   --blue:           #2563EB;
   --blue-bg:        #EFF6FF;
-  --blue-border:    #93C5FD;
-  --blue-text:      #1E3A8A;
+  --blue-border:    #BFDBFE;
+  --blue-text:      #1D4ED8;
 
   --purple:         #7C3AED;
   --purple-bg:      #F5F3FF;
   --purple-border:  #C4B5FD;
   --purple-text:    #4C1D95;
 
-  --teal:           #0891B2;
-  --teal-bg:        #ECFEFF;
-  --teal-border:    #67E8F9;
-  --teal-text:      #164E63;
-
-  --guardian:       #059669;
+  /* Guardian / Primary — teal */
+  --guardian:       #006D6B;
+  --guardian-light: #EDFAF9;
+  --guardian-border:#7FD4CF;
+  --guardian-text:  #006D6B;
 
   /* Urgency highlights */
-  --urgent-glow: rgba(229,41,26,.08);
-  --warn-glow:   rgba(217,119,8,.06);
-  --ok-glow:     rgba(22,163,74,.06);
+  --urgent-glow: rgba(220,38,38,.07);
+  --warn-glow:   rgba(217,119,6,.06);
+  --ok-glow:     rgba(5,150,105,.05);
 
   /* Layout */
-  --sidebar: 216px;
-  --topbar:  48px;
+  --sidebar: 220px;
+  --topbar:  52px;
   --radius:  8px;
-  --radius-lg: 12px;
+  --radius-lg: 10px;
 }
 
 *, *::before, *::after {
@@ -69,12 +69,13 @@
 
 html, body {
   height: 100%;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Scrollbar */
@@ -94,3 +95,71 @@ html, body {
 
 /* Fade-up for page transitions */
 .fade-up { animation: fadeUp .18s ease; }
+
+/* KPI card hover lift */
+.kpi-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+/* Sprint card hover lift */
+.sprint-card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sprint-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+}
+
+/* Settings row hover */
+.settings-row {
+  transition: border-color 0.12s, background 0.12s;
+}
+.settings-row:hover {
+  border-color: #006D6B !important;
+  background: #FAFFFE !important;
+}
+
+/* Decision item fade-out */
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateX(0) scaleY(1); max-height: 200px; }
+  to   { opacity: 0; transform: translateX(20px) scaleY(0.8); max-height: 0; overflow: hidden; }
+}
+.decision-fade-out {
+  animation: fadeOut 0.35s ease forwards;
+  pointer-events: none;
+}
+
+/* Modal enter */
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-enter {
+  animation: modalEnter 0.2s ease;
+}
+
+/* Page section fade in */
+@keyframes sectionFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.section-fade { animation: sectionFadeIn 0.25s ease; }
+
+/* Toast slide in */
+@keyframes slideIn {
+  from { transform: translateX(120%); }
+  to   { transform: translateX(0); }
+}
+
+/* Portfolio heatmap cell hover */
+.heat-cell {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.heat-cell:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}

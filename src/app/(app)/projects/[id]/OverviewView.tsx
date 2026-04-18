@@ -72,17 +72,17 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
   return (
     <>
       <style>{`
-        .ov-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 24px; }
-        .progress-bar { height: 8px; background: #F1F5F9; border-radius: 4px; overflow: hidden; }
+        .ov-card { background: #fff; border: 1px solid #E5E2D9; border-radius: 14px; padding: 20px 24px; }
+        .progress-bar { height: 8px; background: #F4F2EC; border-radius: 4px; overflow: hidden; }
         .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
         .alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-radius: 10px; }
         .settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; justify-content: flex-end; }
         .settings-drawer { width: 520px; height: 100vh; background: #fff; overflow-y: auto; box-shadow: -4px 0 32px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
-        .settings-section { padding: 20px 24px; border-bottom: 1px solid #F1F5F9; }
-        .settings-label { font-size: 10px; font-weight: 700; color: #94A3B8; letter-spacing: 0.07em; text-transform: uppercase; display: block; margin-bottom: 8px; }
-        .settings-input { width: 100%; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 9px 12px; color: #0F172A; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; outline: none; }
+        .settings-section { padding: 20px 24px; border-bottom: 1px solid #F4F2EC; }
+        .settings-label { font-size: 10px; font-weight: 700; color: #9E9C93; letter-spacing: 0.07em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+        .settings-input { width: 100%; background: #F8FAFC; border: 1.5px solid #E5E2D9; border-radius: 8px; padding: 9px 12px; color: #18170F; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; }
         .settings-input:focus { border-color: #006D6B; background: #fff; }
-        .settings-select { width: 100%; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 9px 12px; color: #0F172A; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif; outline: none; cursor: pointer; }
+        .settings-select { width: 100%; background: #F8FAFC; border: 1.5px solid #E5E2D9; border-radius: 8px; padding: 9px 12px; color: #18170F; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; cursor: pointer; }
         .settings-select:focus { border-color: #006D6B; }
       `}</style>
 
@@ -95,25 +95,25 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
               <div style={{ fontSize: 28, fontWeight: 900, color: healthColor, letterSpacing: "-1px", lineHeight: 1 }}>{healthScore}</div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: healthColor }}>{healthLabel}</div>
-                <div style={{ fontSize: 10, color: "#94A3B8" }}>Health Score</div>
+                <div style={{ fontSize: 10, color: "#9E9C93" }}>Health Score</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 20 }}>
               {[
-                { label: "Progress",   value: pct + "%",          color: "#0F172A" },
+                { label: "Progress",   value: pct + "%",          color: "#18170F" },
                 { label: "Days left",  value: daysLeft >= 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d late`, color: daysLeft < 0 ? "#DC2626" : daysLeft <= 7 ? "#D97706" : "#059669" },
                 { label: "Blocked",    value: totalBlocked,       color: totalBlocked > 0 ? "#DC2626" : "#059669" },
                 { label: "Open risks", value: openRisks,          color: openRisks > 0 ? "#D97706" : "#059669" },
               ].map(s => (
                 <div key={s.label}>
-                  <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: 10, color: "#9E9C93", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{s.label}</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: s.color, letterSpacing: "-0.5px" }}>{s.value}</div>
                 </div>
               ))}
             </div>
           </div>
           {canEdit && (
-            <button onClick={() => setShowSettings(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "#F8FAFC", border: "1.5px solid #E2E8F0", borderRadius: 10, fontSize: 12, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setShowSettings(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "#F8FAFC", border: "1.5px solid #E5E2D9", borderRadius: 10, fontSize: 12, fontWeight: 600, color: "#5C5A52", cursor: "pointer", fontFamily: "inherit" }}>
               ⚙ Settings
             </button>
           )}
@@ -121,7 +121,7 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
 
         {/* Alerts */}
         <div className="ov-card" style={{ padding: "16px 20px" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>🔔 Alerts & Insights</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 12 }}>🔔 Alerts & Insights</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {alerts.map((a, i) => {
               const colors: any = {
@@ -134,8 +134,8 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
                 <div key={i} className="alert-item" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, flexShrink: 0, marginTop: 4 }} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{a.title}</div>
-                    <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{a.detail}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#18170F" }}>{a.title}</div>
+                    <div style={{ fontSize: 11, color: "#5C5A52", marginTop: 2 }}>{a.detail}</div>
                   </div>
                 </div>
               );
@@ -145,14 +145,14 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
 
         {/* Progress vs Time */}
         <div className="ov-card">
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Progress vs Time</div>
-          <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 16 }}>Actual progress compared to planned timeline</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", marginBottom: 4 }}>Progress vs Time</div>
+          <div style={{ fontSize: 11, color: "#9E9C93", marginBottom: 16 }}>Actual progress compared to planned timeline</div>
           <div style={{ position: "relative", height: 120 }}>
             <svg width="100%" height="120" viewBox="0 0 400 120" preserveAspectRatio="none">
               {[0, 25, 50, 75, 100].map(y => (
-                <line key={y} x1="0" y1={120 - y * 1.2} x2="400" y2={120 - y * 1.2} stroke="#F1F5F9" strokeWidth="1" />
+                <line key={y} x1="0" y1={120 - y * 1.2} x2="400" y2={120 - y * 1.2} stroke="#F4F2EC" strokeWidth="1" />
               ))}
-              <polyline points={`0,120 ${plannedPct * 4},${120 - plannedPct * 1.2} 400,0`} fill="none" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4,3" />
+              <polyline points={`0,120 ${plannedPct * 4},${120 - plannedPct * 1.2} 400,0`} fill="none" stroke="#CCC9BF" strokeWidth="2" strokeDasharray="4,3" />
               <polygon points={`0,120 ${Math.min(elapsedDays / totalDays * 400, 400)},${120 - pct * 1.2} ${Math.min(elapsedDays / totalDays * 400, 400)},120`} fill="#006D6B15" />
               <polyline points={`0,120 ${Math.min(elapsedDays / totalDays * 400, 400)},${120 - pct * 1.2}`} fill="none" stroke="#006D6B" strokeWidth="2.5" />
               {elapsedDays <= totalDays && (
@@ -162,19 +162,19 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
             </svg>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", pointerEvents: "none" }}>
               {[100, 75, 50, 25, 0].map(v => (
-                <div key={v} style={{ fontSize: 9, color: "#CBD5E1", lineHeight: 1 }}>{v}%</div>
+                <div key={v} style={{ fontSize: 9, color: "#CCC9BF", lineHeight: 1 }}>{v}%</div>
               ))}
             </div>
           </div>
           <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
             {[
               { color: "#006D6B", label: `Actual: ${pct}%`, dashed: false },
-              { color: "#CBD5E1", label: `Planned: ${plannedPct}%`, dashed: false },
+              { color: "#CCC9BF", label: `Planned: ${plannedPct}%`, dashed: false },
               { color: "#DC2626", label: "Today", dashed: true },
             ].map(l => (
               <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <div style={{ width: 16, height: 2, background: l.dashed ? "transparent" : l.color, borderRadius: 1, borderTop: l.dashed ? "2px dashed #DC262660" : undefined }} />
-                <span style={{ fontSize: 11, color: "#64748B" }}>{l.label}</span>
+                <span style={{ fontSize: 11, color: "#5C5A52" }}>{l.label}</span>
               </div>
             ))}
           </div>
@@ -183,16 +183,16 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
         {/* Cost + Efficiency */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div className="ov-card">
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>Cost Overview</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", marginBottom: 16 }}>Cost Overview</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[
-                { label: "Budget",   value: budgetTotal > 0 ? fmt(budgetTotal) : "—", color: "#0F172A", width: 100 },
+                { label: "Budget",   value: budgetTotal > 0 ? fmt(budgetTotal) : "—", color: "#18170F", width: 100 },
                 { label: "Actual",   value: fmt(costActual),  color: "#059669", width: budgetTotal > 0 ? Math.min(100, (costActual / budgetTotal) * 100) : 50 },
                 { label: "Forecast", value: fmt(costForecast), color: delta > 0 ? "#DC2626" : "#2563EB", width: budgetTotal > 0 ? Math.min(110, (costForecast / budgetTotal) * 100) : 60 },
               ].map(row => (
                 <div key={row.label}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>{row.label}</span>
+                    <span style={{ fontSize: 12, color: "#5C5A52", fontWeight: 500 }}>{row.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: row.color }}>{row.value}</span>
                   </div>
                   <div className="progress-bar" style={{ height: 6 }}>
@@ -209,31 +209,31 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
           </div>
 
           <div className="ov-card">
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>Cost Efficiency</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", marginBottom: 16 }}>Cost Efficiency</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {[
                   { label: "Burn Rate/day", value: burnRateActual > 0 ? fmt(burnRateActual) : "—", color: "#2563EB", sub: "actual" },
                   { label: "Cost per 1%",   value: pct > 0 ? fmt(costActual / pct) : "—", color: "#EA580C", sub: "of progress" },
                 ].map(s => (
-                  <div key={s.label} style={{ background: "#F8FAFC", border: "1px solid #F1F5F9", borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label}</div>
+                  <div key={s.label} style={{ background: "#F8FAFC", border: "1px solid #F4F2EC", borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 10, color: "#9E9C93", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: s.color, letterSpacing: "-0.5px" }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>{s.sub}</div>
+                    <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 2 }}>{s.sub}</div>
                   </div>
                 ))}
               </div>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "#64748B" }}>Budget consumed</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0F172A" }}>{budgetTotal > 0 ? Math.round((costActual / budgetTotal) * 100) : 0}%</span>
+                  <span style={{ fontSize: 11, color: "#5C5A52" }}>Budget consumed</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#18170F" }}>{budgetTotal > 0 ? Math.round((costActual / budgetTotal) * 100) : 0}%</span>
                 </div>
                 <div className="progress-bar" style={{ height: 10, marginBottom: 6 }}>
                   <div className="progress-fill" style={{ width: (budgetTotal > 0 ? Math.min(100, (costActual / budgetTotal) * 100) : 0) + "%", background: "#2563EB" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "#64748B" }}>Work completed</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0F172A" }}>{pct}%</span>
+                  <span style={{ fontSize: 11, color: "#5C5A52" }}>Work completed</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#18170F" }}>{pct}%</span>
                 </div>
                 <div className="progress-bar" style={{ height: 10 }}>
                   <div className="progress-fill" style={{ width: pct + "%", background: "#006D6B" }} />
@@ -245,16 +245,16 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
 
         {/* Schedule breakdown */}
         <div className="ov-card">
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>Schedule Breakdown</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", marginBottom: 16 }}>Schedule Breakdown</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {[
-              { label: "Start",        value: new Date(project.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }), color: "#64748B" },
-              { label: "End Planned",  value: new Date(project.endDate).toLocaleDateString("en-GB",   { day: "2-digit", month: "short", year: "2-digit" }), color: "#64748B" },
+              { label: "Start",        value: new Date(project.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }), color: "#5C5A52" },
+              { label: "End Planned",  value: new Date(project.endDate).toLocaleDateString("en-GB",   { day: "2-digit", month: "short", year: "2-digit" }), color: "#5C5A52" },
               { label: "Days Elapsed", value: `${Math.min(elapsedDays, totalDays)}/${totalDays}d`, color: "#2563EB" },
               { label: "Schedule Gap", value: scheduleGap >= 0 ? `+${scheduleGap}pp` : `${scheduleGap}pp`, color: scheduleGap >= 0 ? "#059669" : "#DC2626" },
             ].map(s => (
-              <div key={s.label} style={{ background: "#F8FAFC", border: "1px solid #F1F5F9", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label}</div>
+              <div key={s.label} style={{ background: "#F8FAFC", border: "1px solid #F4F2EC", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#9E9C93", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{s.label}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.value}</div>
               </div>
             ))}
@@ -266,35 +266,35 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
       {showSettings && (
         <div className="settings-overlay" onClick={() => setShowSettings(false)}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #F4F2EC", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>Project Settings</div>
-                <div style={{ fontSize: 12, color: "#94A3B8" }}>{project.name}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#18170F" }}>Project Settings</div>
+                <div style={{ fontSize: 12, color: "#9E9C93" }}>{project.name}</div>
               </div>
-              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#94A3B8" }}>✕</button>
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9E9C93" }}>✕</button>
             </div>
             <div className="settings-section">
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 14 }}>General</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 14 }}>General</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div><label className="settings-label">Project Name</label><input className="settings-input" defaultValue={project.name} readOnly={!canEdit} /></div>
                 <div><label className="settings-label">Description</label><textarea className="settings-input" defaultValue={project.description ?? ""} rows={3} style={{ resize: "vertical" }} readOnly={!canEdit} /></div>
               </div>
             </div>
             <div className="settings-section">
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 14 }}>Execution</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 14 }}>Execution</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div><label className="settings-label">Start Date</label><input type="date" className="settings-input" defaultValue={project.startDate?.slice(0, 10)} readOnly={!canEdit} /></div>
                 <div><label className="settings-label">End Date</label><input type="date" className="settings-input" defaultValue={project.endDate?.slice(0, 10)} readOnly={!canEdit} /></div>
               </div>
             </div>
             <div className="settings-section">
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 14 }}>Organization</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 14 }}>Organization</div>
               <div style={{ marginBottom: 14 }}>
                 <label className="settings-label">Requested By</label>
                 {project.requestedBy && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F4F2EC" }}>
                     <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#2563EB" }}>{project.requestedBy.name?.[0]?.toUpperCase() ?? "?"}</div>
-                    <div><div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A" }}>{project.requestedBy.name ?? project.requestedBy.email}</div><div style={{ fontSize: 10, color: "#94A3B8" }}>{project.requestedBy.email}</div></div>
+                    <div><div style={{ fontSize: 12, fontWeight: 600, color: "#18170F" }}>{project.requestedBy.name ?? project.requestedBy.email}</div><div style={{ fontSize: 10, color: "#9E9C93" }}>{project.requestedBy.email}</div></div>
                   </div>
                 )}
                 {canEdit && (
@@ -313,16 +313,16 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
                 <label className="settings-label">Departments</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
                   {project.departments.map((d: any) => (
-                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F4F2EC" }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, flex: 1, color: "#0F172A" }}>{d.name}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, flex: 1, color: "#18170F" }}>{d.name}</span>
                       {canEdit && <button onClick={async () => {
                         await fetch(`/api/projects/${project.id}/departments`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ departmentId: d.id }) });
                         setProject((p: any) => ({ ...p, departments: p.departments.filter((dep: any) => dep.id !== d.id) }));
                       }} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", fontSize: 12 }}>✕</button>}
                     </div>
                   ))}
-                  {project.departments.length === 0 && <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>No departments assigned</div>}
+                  {project.departments.length === 0 && <div style={{ fontSize: 12, color: "#CCC9BF", fontStyle: "italic" }}>No departments assigned</div>}
                 </div>
                 {canEdit && (
                   <select className="settings-select" onChange={async e => {
@@ -340,7 +340,7 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
               </div>
             </div>
             <div className="settings-section">
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 14 }}>Financial</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 14 }}>Financial</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div>
                   <label className="settings-label">Budget Total</label>
@@ -355,16 +355,16 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
               </div>
             </div>
             <div className="settings-section">
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 14 }}>Resources Assigned</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 14 }}>Resources Assigned</div>
               {project.assignments.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic" }}>No resources assigned.</div>
+                <div style={{ fontSize: 12, color: "#CCC9BF", fontStyle: "italic" }}>No resources assigned.</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {project.assignments.map((a: any) => (
-                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F4F2EC" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A" }}>{a.resource.name}</div>
-                        <div style={{ fontSize: 10, color: "#94A3B8" }}>{a.resource.role} · {fmt(a.resource.costPerHour)}/h</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#18170F" }}>{a.resource.name}</div>
+                        <div style={{ fontSize: 10, color: "#9E9C93" }}>{a.resource.role} · {fmt(a.resource.costPerHour)}/h</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "#2563EB" }}>{a.estimatedHours}h est.</div>
@@ -375,7 +375,7 @@ export default function OverviewView({ project, allF, allMembers, allDepartments
                 </div>
               )}
             </div>
-            <div style={{ padding: "16px 24px", borderTop: "1px solid #F1F5F9", background: "#FAFBFC", position: "sticky", bottom: 0 }}>
+            <div style={{ padding: "16px 24px", borderTop: "1px solid #F4F2EC", background: "#FDFCFA", position: "sticky", bottom: 0 }}>
               <button onClick={() => setShowSettings(false)} style={{ width: "100%", padding: "11px", background: "#006D6B", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Done</button>
             </div>
           </div>

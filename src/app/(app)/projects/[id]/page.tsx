@@ -1,101 +1,112 @@
-import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
-import { notFound, redirect } from "next/navigation";
-import RoadmapClient from "./RoadmapClient";
- 
+import { redirect, notFound } from "next/navigation";
+import { db } from "@/lib/prisma";
+import { getProjectMetrics } from "@/lib/metrics";
+import ProjectOverviewClient from "./ProjectOverviewClient";
+
 export default async function ProjectPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
- 
-  const [project, allProjects, allMembers, allDepartments] = await Promise.all([
-    db.project.findFirst({
-      where: { id, organisationId: ctx.org.id },
-      include: {
-        phases: { orderBy: { order: "asc" } },
-        sprints: {
-          orderBy: { order: "asc" },
-          include: {
-            features: {
-              orderBy: { order: "asc" },
-              include: { dependsOn: true },
-            },
-          },
-        },
-        dependsOn: { include: { dependsOn: true } },
-        risks: { orderBy: { createdAt: "desc" } },
-        assignments: {
-          include: { resource: true },
-        },
-        requestedBy: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-        departments: {
-          include: { department: true },
-        },
+  const { id } = await params;
+
+  const project = await db.project.findFirst({
+    where: { id, organisationId: ctx.org.id },
+    include: {
+      phases: { orderBy: { order: "asc" } },
+      sprints: {
+        orderBy: { order: "asc" },
+        include: { features: { orderBy: { order: "asc" } } },
       },
-    }),
-    db.project.findMany({
-      where: { organisationId: ctx.org.id },
-      select: { id: true, name: true },
-    }),
-    db.member.findMany({
-      where: { organisationId: ctx.org.id },
-      include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
-    }),
-    db.department.findMany({
-      where: { organisationId: ctx.org.id },
-      select: { id: true, name: true, color: true },
-    }),
-  ]);
- 
+      risks: { where: { status: "OPEN" }, orderBy: [{ probability: "desc" }, { impact: "desc" }], take: 5 },
+      assignments: { include: { resource: true } },
+      requestedBy: { select: { name: true, email: true } },
+      departments: { include: { department: true } },
+      dependsOn: { include: { dependsOn: true } },
+    },
+  });
+
   if (!project) notFound();
- 
-  const serialized = {
-    ...project,
-    startDate: project.startDate.toISOString(),
-    endDate: project.endDate.toISOString(),
-    createdAt: project.createdAt.toISOString(),
-    updatedAt: project.updatedAt.toISOString(),
-    risks: project.risks.map(r => ({
-      ...r,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    })),
-    assignments: project.assignments.map(a => ({
-      ...a,
-      createdAt: a.createdAt.toISOString(),
-      updatedAt: a.updatedAt.toISOString(),
-    })),
-    departments: project.departments.map(pd => ({
-      id: pd.department.id,
-      name: pd.department.name,
-      color: pd.department.color,
-    })),
-    sprints: project.sprints.map(s => ({
-      ...s,
-      startDate: s.startDate?.toISOString() ?? null,
-      endDate: s.endDate?.toISOString() ?? null,
-      features: s.features.map(f => ({
-        ...f,
-        createdAt: f.createdAt.toISOString(),
-        updatedAt: f.updatedAt.toISOString(),
-      })),
-    })),
-  };
- 
+
+  const metrics = getProjectMetrics(project as any);
+
+  const activeSprint = project.sprints.find(s => s.status === "ACTIVE") ?? project.sprints[project.sprints.length - 1] ?? null;
+  const totalPts = activeSprint?.features.reduce((s: number, f: any) => s + (f.storyPoints ?? 0), 0) ?? 0;
+  const donePts  = activeSprint?.features.filter((f: any) => f.status === "DONE").reduce((s: number, f: any) => s + (f.storyPoints ?? 0), 0) ?? 0;
+
+  const daysLeft = activeSprint?.endDate
+    ? Math.ceil((new Date(activeSprint.endDate).getTime() - Date.now()) / 86400000)
+    : null;
+
+  const teamLead = project.requestedBy?.name ?? project.requestedBy?.email ?? "—";
+
   return (
-    <RoadmapClient
-      project={serialized as any}
-      role={ctx.role}
-      allProjects={allProjects}
-      allMembers={allMembers.map(m => ({ ...m.user, name: m.user.name ?? undefined }))}
-      allDepartments={allDepartments}
+    <ProjectOverviewClient
+      projectId={id}
+      project={{
+        id:           project.id,
+        name:         project.name,
+        description:  project.description ?? "",
+        startDate:    project.startDate.toISOString(),
+        endDate:      project.endDate.toISOString(),
+        budgetTotal:  project.budgetTotal,
+        status:       project.status,
+      }}
+      metrics={{
+        spi:             metrics.health.spi,
+        cpi:             metrics.health.cpi,
+        healthScore:     metrics.health.healthScore,
+        healthStatus:    metrics.health.status,
+        progressNominal: metrics.health.progressNominal,
+        costActual:      metrics.costActual,
+        alerts:          metrics.health.alerts as any[],
+      }}
+      phases={project.phases.map((ph: any) => ({
+        id:        ph.id,
+        name:      ph.name,
+        startDate: ph.startDate?.toISOString() ?? null,
+        endDate:   ph.endDate?.toISOString()   ?? null,
+        status:    ph.status,
+        pct:       ph.completionPct ?? 0,
+      }))}
+      activeSprint={activeSprint ? {
+        id:        activeSprint.id,
+        name:      activeSprint.name,
+        startDate: activeSprint.startDate?.toISOString() ?? null,
+        endDate:   activeSprint.endDate?.toISOString()   ?? null,
+        totalPts,
+        donePts,
+        daysLeft:  daysLeft ?? 0,
+        features:  activeSprint.features.map((f: any) => ({
+          id:     f.id,
+          title:  f.title,
+          status: f.status,
+          source: f.externalId ? "jira" : "native",
+          storyPoints: f.storyPoints ?? 0,
+        })),
+      } : null}
+      risks={project.risks.map((r: any) => ({
+        id:          r.id,
+        title:       r.title,
+        probability: r.probability,
+        impact:      r.impact,
+        score:       r.probability * r.impact,
+        status:      r.status,
+        owner:       r.owner ?? "—",
+        category:    r.category,
+      }))}
+      assignments={project.assignments.map((a: any) => ({
+        id:             a.id,
+        name:           a.resource.name,
+        role:           a.resource.role,
+        estimatedHours: a.estimatedHours,
+        actualHours:    a.actualHours,
+        capacityHours:  a.resource.capacityHours,
+      }))}
+      teamLead={teamLead}
     />
   );
 }
- 

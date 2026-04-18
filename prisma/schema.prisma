@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
+  output   = "../node_modules/.pnpm/@prisma+client@6.19.3_prism_1d040ab5215f59f0e27ddee7f0cf082e/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -13,7 +13,10 @@ model Organisation {
   clerkOrgId  String   @unique
   name        String
   slug        String   @unique
-  logoUrl     String?
+  logoUrl        String?
+  brandColor     String?  @default("#006D6B")
+  documentHeader String?
+  documentFooter String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -103,7 +106,7 @@ model Project {
   id                 String        @id @default(cuid())
   name               String
   description        String?       @db.Text
-  functionalAnalysis String?       @db.Text
+  briefText          String?       @db.Text
   startDate          DateTime
   endDate            DateTime
   endDateForecast    DateTime?
@@ -137,8 +140,11 @@ model Project {
   dependsOn   ProjectDependency[] @relation("dependent")
   blockedBy   ProjectDependency[] @relation("blocker")
   departments ProjectDepartment[]
-  alerts      Alert[]
-  snapshots   ProjectSnapshot[]
+  alerts             Alert[]
+  snapshots          ProjectSnapshot[]
+  messages           ProjectMessage[]
+  functionalAnalysis FunctionalAnalysis?
+  documents          ProjectDocument[]
 
   @@index([organisationId])
   @@index([organisationId, status])
@@ -480,4 +486,107 @@ model OutboxEvent {
   @@index([processedAt])
   @@index([createdAt])
   @@map("outbox_events")
+}
+
+// ── Functional Analysis ───────────────────────────────────────────────────
+model FunctionalAnalysis {
+  id              String    @id @default(cuid())
+  projectId       String    @unique
+  content         Json
+  status          FAStatus  @default(DRAFT)
+  version         Int       @default(1)
+  approvedBy      String?
+  approvedAt      DateTime?
+  videoUrl        String?
+  videoTranscript String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  project  Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions FAVersion[]
+
+  @@map("functional_analyses")
+}
+
+model FAVersion {
+  id         String   @id @default(cuid())
+  analysisId String
+  version    Int
+  content    Json
+  changedBy  String
+  changeNote String?
+  createdAt  DateTime @default(now())
+
+  analysis FunctionalAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@map("fa_versions")
+}
+
+enum FAStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+// ── Project Documents ──────────────────────────────────────────────────────
+model ProjectDocument {
+  id        String       @id @default(cuid())
+  projectId String
+  type      DocumentType
+  title     String
+  content   Json?
+  fileUrl   String?
+  fileSize  Int?
+  mimeType  String?
+  version   Int          @default(1)
+  status    String       @default("DRAFT")
+  createdBy String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_documents")
+}
+
+enum DocumentType {
+  PROJECT_CHARTER
+  FUNCTIONAL_ANALYSIS
+  RISK_REGISTER
+  RACI_MATRIX
+  CLOSURE_REPORT
+  MEETING_NOTES
+  CUSTOM
+}
+
+// ── Project Chat ───────────────────────────────────────────────────────────
+model ProjectMessage {
+  id          String      @id @default(cuid())
+  projectId   String
+  userId      String
+  userName    String
+  content     String      @db.Text
+  type        MessageType @default(TEXT)
+  mentions    String[]
+  replyToId   String?
+  editedAt    DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  replyTo     ProjectMessage?  @relation("replies", fields: [replyToId], references: [id])
+  replies     ProjectMessage[] @relation("replies")
+
+  @@index([projectId, createdAt])
+  @@map("project_messages")
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  COMMAND
 }

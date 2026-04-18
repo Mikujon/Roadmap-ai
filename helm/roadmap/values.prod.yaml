@@ -1,0 +1,55 @@
+# ── Production overrides ──────────────────────────────────────────────────
+# Usage: helm upgrade --install roadmap ./helm/roadmap \
+#          -f helm/roadmap/values.yaml \
+#          -f helm/roadmap/values.prod.yaml \
+#          --namespace roadmap --create-namespace
+
+global:
+  image:
+    registry: ghcr.io/your-org/roadmap
+    tag: "0.5.0"        # pin to a specific tag in prod (not 'latest')
+    pullPolicy: IfNotPresent
+
+web:
+  replicaCount: 3
+  hpa:
+    minReplicas: 3
+    maxReplicas: 15
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  ingress:
+    host: app.roadmap.ai
+    tls:
+      secretName: roadmap-web-tls
+
+worker:
+  replicaCount: 2
+  hpa:
+    minReplicas: 2
+    maxReplicas: 6
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+commonEnv:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # DATABASE_URL_REPLICA comes from existingSecret
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  web:
+    minAvailable: 2
+  worker:
+    minAvailable: 1

@@ -44,7 +44,7 @@ export default function MobileSidebar({ nav, userName, orgName, roleMeta }: {
         width:      240,
         height:     "100vh",
         background: "#fff",
-        borderRight: "1px solid #E2E8F0",
+        borderRight: "1px solid #E5E2D9",
         zIndex:     500,
         display:    "flex",
         flexDirection: "column",
@@ -53,15 +53,15 @@ export default function MobileSidebar({ nav, userName, orgName, roleMeta }: {
         boxShadow:  open ? "4px 0 24px rgba(0,0,0,0.12)" : "none",
       }}>
         {/* Header */}
-        <div style={{ padding: "20px 8px 16px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 8px 16px", borderBottom: "1px solid #F4F2EC", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, background: "linear-gradient(135deg, #006D6B, #0891B2)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: "#fff" }}>RM</div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: "#0F172A" }}>RoadmapAI</div>
-              <div style={{ fontSize: 10, color: "#94A3B8" }}>PMO Platform</div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#18170F" }}>RoadmapAI</div>
+              <div style={{ fontSize: 10, color: "#9E9C93" }}>PMO Platform</div>
             </div>
           </div>
-          <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#94A3B8", padding: 4 }}>✕</button>
+          <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9E9C93", padding: 4 }}>✕</button>
         </div>
 
         {/* Role badge */}
@@ -72,7 +72,7 @@ export default function MobileSidebar({ nav, userName, orgName, roleMeta }: {
         </div>
 
         {/* Nav */}
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#CBD5E1", letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 8px 6px" }}>Menu</div>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#CCC9BF", letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 8px 6px" }}>Menu</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
           {nav.map(n => (
             <Link
@@ -88,13 +88,13 @@ export default function MobileSidebar({ nav, userName, orgName, roleMeta }: {
         </nav>
 
         {/* User */}
-        <div style={{ borderTop: "1px solid #F1F5F9", padding: "14px 8px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ borderTop: "1px solid #F4F2EC", padding: "14px 8px", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#006D6B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
             {userName?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</div>
-            <div style={{ fontSize: 10, color: "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{orgName}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#18170F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</div>
+            <div style={{ fontSize: 10, color: "#9E9C93", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{orgName}</div>
           </div>
         </div>
       </div>

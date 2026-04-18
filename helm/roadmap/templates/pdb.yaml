@@ -1,0 +1,31 @@
+{{- if and .Values.web.enabled .Values.podDisruptionBudget.web.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "roadmap.fullname" . }}-web
+  labels:
+    {{- include "roadmap.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.web.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "roadmap.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: web
+{{- end }}
+---
+{{- if and .Values.worker.enabled .Values.podDisruptionBudget.worker.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "roadmap.fullname" . }}-worker
+  labels:
+    {{- include "roadmap.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.worker.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "roadmap.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+{{- end }}

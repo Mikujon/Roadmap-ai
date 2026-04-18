@@ -7,6 +7,7 @@ interface DecisionItemProps {
   action?: string;
   onAction?: () => void;
   href?: string;
+  onDismiss?: () => void;
 }
 
 const CONFIG: Record<DecisionPriority, { wrap: React.CSSProperties; label: React.CSSProperties; labelText: string }> = {
@@ -27,7 +28,7 @@ const CONFIG: Record<DecisionPriority, { wrap: React.CSSProperties; label: React
   },
 };
 
-export function DecisionItem({ priority, text, meta, action, onAction, href }: DecisionItemProps) {
+export function DecisionItem({ priority, text, meta, action, onAction, href, onDismiss }: DecisionItemProps) {
   const c = CONFIG[priority];
   return (
     <div style={{
@@ -46,17 +47,28 @@ export function DecisionItem({ priority, text, meta, action, onAction, href }: D
         <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', lineHeight: 1.4 }}>{text}</p>
         {meta && <p style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{meta}</p>}
       </div>
-      {action && (onAction || href) && (
-        href ? (
-          <a href={href} style={{ fontSize: 11, padding: '5px 11px', border: '1px solid var(--border2)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none' }}>
-            {action}
-          </a>
-        ) : (
-          <button onClick={onAction} style={{ fontSize: 11, padding: '5px 11px', border: '1px solid var(--border2)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'inherit' }}>
-            {action}
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+        {action && (onAction || href) && (
+          href ? (
+            <a href={href} style={{ fontSize: 11, padding: '5px 11px', border: '1px solid var(--border2)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>
+              {action}
+            </a>
+          ) : (
+            <button onClick={onAction} style={{ fontSize: 11, padding: '5px 11px', border: '1px solid var(--border2)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              {action}
+            </button>
+          )
+        )}
+        {onDismiss && (
+          <button
+            onClick={onDismiss}
+            title="Dismiss"
+            style={{ fontSize: 13, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: '2px 4px', fontFamily: 'inherit' }}
+          >
+            ✕
           </button>
-        )
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -36,7 +36,7 @@ export function GuardianBar({ projectId, staticMessage, action, onAction }: Guar
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '8px 13px',
-      background: 'linear-gradient(to right, rgba(5,150,105,.05), transparent)',
+      background: 'linear-gradient(to right, rgba(0,109,107,.05), transparent)',
       borderTop: '1px solid var(--border)',
     }}>
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--guardian)', flexShrink: 0 }} className="g-dot-pulse" />

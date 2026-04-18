@@ -75,6 +75,13 @@ export default async function DashboardPage() {
     const sprintDone    = activeSprint ? activeSprint.features.filter(f => f.status === "DONE").length : 0;
     const sprintTotal   = activeSprint ? activeSprint.features.length : 0;
 
+    // Upcoming sprint deadlines
+    const upcomingSprints = p.sprints
+      .filter(s => s.endDate && s.status !== "DONE")
+      .map(s => ({ sprintName: s.name, projectName: p.name, projectId: p.id, endDate: s.endDate!.toISOString().slice(0,10) }))
+      .sort((a, b) => a.endDate.localeCompare(b.endDate))
+      .slice(0, 2);
+
     return {
       id: p.id, name: p.name, status: p.status,
       allF, done, blocked, inProgress, pct, activeSprints,
@@ -86,6 +93,7 @@ export default async function DashboardPage() {
       cpi:         h.cpi,
       sprintDone, sprintTotal,
       sprintName:  activeSprint?.name ?? null,
+      upcomingSprints,
     };
   });
 

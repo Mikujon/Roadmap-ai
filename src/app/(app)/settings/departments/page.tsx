@@ -52,44 +52,44 @@ export default function DepartmentsSettingsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 32px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 32px", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Departments</h2>
-        <p style={{ fontSize: 13, color: "#64748B" }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "#18170F", marginBottom: 4 }}>Departments</h2>
+        <p style={{ fontSize: 13, color: "#5C5A52" }}>
           Create departments for your organization. Departments can be assigned to projects and used to group cost views.
         </p>
       </div>
 
       {/* Create new department */}
-      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>New Department</div>
+      <div style={{ background: "#fff", border: "1px solid #E5E2D9", borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", marginBottom: 16 }}>New Department</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Name *</label>
+              <label style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Name *</label>
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="e.g. Engineering, Marketing, Finance"
-                style={{ width: "100%", background: "#F8FAFC", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", color: "#0F172A" }}
+                style={{ width: "100%", background: "#F8FAFC", border: "1.5px solid #E5E2D9", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", color: "#18170F" }}
                 onKeyDown={e => e.key === "Enter" && create()}
               />
             </div>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Description</label>
+              <label style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Description</label>
               <input
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Optional description"
-                style={{ width: "100%", background: "#F8FAFC", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", color: "#0F172A" }}
+                style={{ width: "100%", background: "#F8FAFC", border: "1.5px solid #E5E2D9", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", color: "#18170F" }}
               />
             </div>
           </div>
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 8 }}>Color</label>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 8 }}>Color</label>
             <div style={{ display: "flex", gap: 8 }}>
               {COLORS.map(c => (
-                <div key={c} onClick={() => setNewColor(c)} style={{ width: 24, height: 24, borderRadius: "50%", background: c, cursor: "pointer", border: newColor === c ? "3px solid #0F172A" : "3px solid transparent", flexShrink: 0 }} />
+                <div key={c} onClick={() => setNewColor(c)} style={{ width: 24, height: 24, borderRadius: "50%", background: c, cursor: "pointer", border: newColor === c ? "3px solid #18170F" : "3px solid transparent", flexShrink: 0 }} />
               ))}
             </div>
           </div>
@@ -105,29 +105,29 @@ export default function DepartmentsSettingsPage() {
       </div>
 
       {/* Existing departments */}
-      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Organization Departments</div>
-          <span style={{ fontSize: 11, color: "#94A3B8" }}>{departments.length} total</span>
+      <div style={{ background: "#fff", border: "1px solid #E5E2D9", borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #F4F2EC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F" }}>Organization Departments</div>
+          <span style={{ fontSize: 11, color: "#9E9C93" }}>{departments.length} total</span>
         </div>
         {loading ? (
-          <div style={{ padding: 32, textAlign: "center", fontSize: 13, color: "#94A3B8" }}>Loading…</div>
+          <div style={{ padding: 32, textAlign: "center", fontSize: 13, color: "#9E9C93" }}>Loading…</div>
         ) : departments.length === 0 ? (
           <div style={{ padding: "40px 32px", textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🏢</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", marginBottom: 6 }}>No departments yet</div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>Create your first department above</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#18170F", marginBottom: 6 }}>No departments yet</div>
+            <div style={{ fontSize: 12, color: "#9E9C93" }}>Create your first department above</div>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {departments.map((dept, i) => (
-              <div key={dept.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", borderBottom: i < departments.length - 1 ? "1px solid #F1F5F9" : "none" }}>
+              <div key={dept.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", borderBottom: i < departments.length - 1 ? "1px solid #F4F2EC" : "none" }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: dept.color + "20", border: `2px solid ${dept.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <div style={{ width: 12, height: 12, borderRadius: "50%", background: dept.color }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{dept.name}</div>
-                  {dept.description && <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>{dept.description}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#18170F" }}>{dept.name}</div>
+                  {dept.description && <div style={{ fontSize: 11, color: "#9E9C93", marginTop: 2 }}>{dept.description}</div>}
                 </div>
                 <button
                   onClick={() => remove(dept.id)}
@@ -141,7 +141,7 @@ export default function DepartmentsSettingsPage() {
         )}
       </div>
 
-      <div style={{ marginTop: 20, padding: "14px 18px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, fontSize: 12, color: "#64748B" }}>
+      <div style={{ marginTop: 20, padding: "14px 18px", background: "#F8FAFC", border: "1px solid #E5E2D9", borderRadius: 10, fontSize: 12, color: "#5C5A52" }}>
         💡 Departments can be assigned to projects in the project Settings drawer. They appear in the Portfolio and Cost View for filtering and grouping.
       </div>
     </div>

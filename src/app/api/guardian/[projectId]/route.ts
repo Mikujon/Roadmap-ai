@@ -1,7 +1,7 @@
+import { triggerGuardian } from "@/lib/guardian-trigger";
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { enqueueGuardianRun } from "@roadmap/queue";
 
 const CACHE_TTL_HOURS = 2;
 
@@ -34,7 +34,7 @@ export async function GET(
 
   // Enqueue fresh analysis — worker will upsert GuardianReport when done
   if (process.env.REDIS_URL) {
-    await enqueueGuardianRun(projectId, project.name, { force: forceRefresh }).catch(() => {});
+    await triggerGuardian(projectId, project.name);
   }
 
   // Return stale cached if available while worker runs
@@ -72,8 +72,9 @@ export async function POST(
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (process.env.REDIS_URL) {
-    await enqueueGuardianRun(projectId, project.name, { force: true });
+    await triggerGuardian(projectId, project.name);
   }
 
   return NextResponse.json({ ok: true, message: "Guardian analysis queued" });
 }
+

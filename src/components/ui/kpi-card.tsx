@@ -32,7 +32,7 @@ const VALUE_COLOR: Record<KpiIntent, string> = {
 
 export function KpiCard({ label, value, sub, intent, accent }: KpiCardProps) {
   return (
-    <div style={{
+    <div className="kpi-card" style={{
       background: BG[intent],
       border: `1px solid ${BORDER[intent]}`,
       borderRadius: 'var(--radius-lg)',

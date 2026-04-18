@@ -1,0 +1,12 @@
+apiVersion: v2
+name: roadmap
+description: RoadmapAI — Enterprise PMO SaaS (web + worker)
+type: application
+version: 0.5.0
+appVersion: "0.5.0"
+maintainers:
+  - name: RoadmapAI Team
+keywords:
+  - pmo
+  - saas
+  - ai

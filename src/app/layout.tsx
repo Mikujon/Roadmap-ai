@@ -1,9 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "RoadmapAI — AI-powered project roadmaps",
@@ -18,7 +16,11 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>{children}</body>
+        <body>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </body>
       </html>
     </ClerkProvider>
   );

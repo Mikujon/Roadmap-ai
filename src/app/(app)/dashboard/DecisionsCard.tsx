@@ -47,23 +47,23 @@ export default function DecisionsCard({ decisions }: { decisions: Decision[] }) 
         <span style={{ fontSize: 20 }}>✓</span>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#059669" }}>No decisions needed</div>
-          <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>Portfolio is in good health — no critical actions required right now.</div>
+          <div style={{ fontSize: 12, color: "#5C5A52", marginTop: 2 }}>Portfolio is in good health — no critical actions required right now.</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
-      <div style={{ padding: "16px 22px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ background: "#fff", border: "1px solid #E5E2D9", borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ padding: "16px 22px", borderBottom: "1px solid #F4F2EC", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Decisions needed</div>
-          <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F" }}>Decisions needed</div>
+          <div style={{ fontSize: 11, color: "#9E9C93", marginTop: 2 }}>
             {decisions.filter(d => d.severity === "critical").length} critical · {decisions.filter(d => d.severity === "warning").length} warnings
           </div>
         </div>
         {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94A3B8" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9E9C93" }}>
             <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid #006D6B", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             AI analyzing…
@@ -80,13 +80,13 @@ export default function DecisionsCard({ decisions }: { decisions: Decision[] }) 
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot, flexShrink: 0, marginTop: 5 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{d.title}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#18170F" }}>{d.title}</span>
                   <span style={{ fontSize: 10, fontWeight: 700, color: s.dot, background: s.bg, border: `1px solid ${s.border}`, padding: "1px 7px", borderRadius: 10 }}>{s.label}</span>
                 </div>
                 {insight ? (
-                  <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.55, margin: 0 }}>{insight}</p>
+                  <p style={{ fontSize: 12, color: "#5C5A52", lineHeight: 1.55, margin: 0 }}>{insight}</p>
                 ) : (
-                  <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>{d.detail}</p>
+                  <p style={{ fontSize: 12, color: "#9E9C93", margin: 0 }}>{d.detail}</p>
                 )}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -98,7 +98,7 @@ export default function DecisionsCard({ decisions }: { decisions: Decision[] }) 
                 </Link>
                 <Link
                   href={`/projects/${d.projectId}`}
-                  style={{ fontSize: 11, fontWeight: 600, color: "#64748B", background: "#F8FAFC", border: "1px solid #E2E8F0", padding: "5px 12px", borderRadius: 7, textDecoration: "none" }}
+                  style={{ fontSize: 11, fontWeight: 600, color: "#5C5A52", background: "#F8FAFC", border: "1px solid #E5E2D9", padding: "5px 12px", borderRadius: 7, textDecoration: "none" }}
                 >
                   View
                 </Link>

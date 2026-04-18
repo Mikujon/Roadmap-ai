@@ -2,10 +2,10 @@
 import { useState } from "react";
 
 export default function InviteForm() {
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("VIEWER");
+  const [email,   setEmail]   = useState("");
+  const [role,    setRole]    = useState("VIEWER");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
 
   const invite = async () => {
@@ -13,10 +13,10 @@ export default function InviteForm() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch("/api/invitations", {
-        method: "POST",
+      const res  = await fetch("/api/invitations", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
+        body:    JSON.stringify({ email, role }),
       });
       const data = await res.json();
       if (!res.ok) setError(data.error ?? "Failed to invite");
@@ -32,20 +32,29 @@ export default function InviteForm() {
   };
 
   return (
-    <div style={{ background: "#0D1929", border: "1px solid #1E3A5F", borderRadius: 12, padding: 20 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#E2EBF6", marginBottom: 12 }}>Invite Member</div>
+    <div style={{ background: "#fff", border: "1px solid #E5E2D9", borderRadius: 10, padding: "18px 20px" }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#18170F", marginBottom: 14 }}>Invite Member</div>
       <div style={{ display: "flex", gap: 8 }}>
         <input
           type="email"
           placeholder="email@example.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ flex: 1, background: "#0A1628", border: "1px solid #1E3A5F", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#E2EBF6", outline: "none" }}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !loading && email && invite()}
+          style={{
+            flex: 1, background: "#F8FAFC", border: "1.5px solid #E5E2D9",
+            borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#18170F",
+            outline: "none", fontFamily: "inherit",
+          }}
         />
         <select
           value={role}
-          onChange={(e) => setRole(e.target.value)}
-          style={{ background: "#0A1628", border: "1px solid #1E3A5F", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#E2EBF6", outline: "none" }}
+          onChange={e => setRole(e.target.value)}
+          style={{
+            background: "#F8FAFC", border: "1.5px solid #E5E2D9",
+            borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#18170F",
+            outline: "none", fontFamily: "inherit", cursor: "pointer",
+          }}
         >
           <option value="VIEWER">Viewer</option>
           <option value="MANAGER">Manager</option>
@@ -54,13 +63,18 @@ export default function InviteForm() {
         <button
           onClick={invite}
           disabled={loading || !email}
-          style={{ background: "linear-gradient(135deg,#007A73,#0a9a90)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: loading || !email ? 0.5 : 1 }}
+          style={{
+            background: "#006D6B", color: "#fff", border: "none",
+            borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 600,
+            cursor: loading || !email ? "not-allowed" : "pointer",
+            opacity: loading || !email ? 0.5 : 1, fontFamily: "inherit",
+          }}
         >
-          {loading ? "Sending..." : "Invite"}
+          {loading ? "Sending…" : "Invite"}
         </button>
       </div>
-      {error && <p style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{error}</p>}
-      {success && <p style={{ fontSize: 12, color: "#007A73", marginTop: 8 }}>{success}</p>}
+      {error   && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8 }}>{error}</p>}
+      {success && <p style={{ fontSize: 12, color: "#059669", marginTop: 8 }}>{success}</p>}
     </div>
   );
 }

@@ -48,7 +48,7 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
     <>
       <button
         onClick={() => setOpen(true)}
-        style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "inherit" }}
+        style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", background: "#F8FAFC", border: "1px solid #E5E2D9", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#5C5A52", cursor: "pointer", fontFamily: "inherit" }}
       >
         📋 Closure Report
       </button>
@@ -57,23 +57,23 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setOpen(false)}>
           <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 680, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div style={{ padding: "24px 28px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div style={{ padding: "24px 28px", borderBottom: "1px solid #F4F2EC", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>AI Closure Report</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.3px" }}>{projectName}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>AI Closure Report</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#18170F", letterSpacing: "-0.3px" }}>{projectName}</div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: rating.color, background: rating.bg, padding: "4px 10px", borderRadius: 20 }}>{rating.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: delivery.color, background: "#F8FAFC", padding: "4px 10px", borderRadius: 20, border: "1px solid #E2E8F0" }}>{delivery.label}</span>
-                <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 18, marginLeft: 4 }}>✕</button>
+                <span style={{ fontSize: 11, fontWeight: 700, color: delivery.color, background: "#F8FAFC", padding: "4px 10px", borderRadius: 20, border: "1px solid #E5E2D9" }}>{delivery.label}</span>
+                <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9E9C93", fontSize: 18, marginLeft: 4 }}>✕</button>
               </div>
             </div>
 
             <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
               {/* Executive Summary */}
-              <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 20px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Executive Summary</div>
-                <p style={{ fontSize: 13, color: "#0F172A", lineHeight: 1.6, margin: 0 }}>{report.executiveSummary}</p>
+              <div style={{ background: "#F8FAFC", border: "1px solid #E5E2D9", borderRadius: 12, padding: "16px 20px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Executive Summary</div>
+                <p style={{ fontSize: 13, color: "#18170F", lineHeight: 1.6, margin: 0 }}>{report.executiveSummary}</p>
               </div>
 
               {/* KPIs */}
@@ -83,10 +83,10 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
                   { label: "SPI", value: report.schedulePerformance.spi.toFixed(2), sub: report.schedulePerformance.summary, color: report.schedulePerformance.spi >= 0.9 ? "#059669" : "#DC2626" },
                   { label: "CPI", value: report.costPerformance.cpi.toFixed(2), sub: report.costPerformance.summary, color: report.costPerformance.cpi >= 0.9 ? "#059669" : "#DC2626" },
                 ].map(k => (
-                  <div key={k.label} style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "14px 16px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>{k.label}</div>
+                  <div key={k.label} style={{ background: "#F8FAFC", border: "1px solid #E5E2D9", borderRadius: 10, padding: "14px 16px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>{k.label}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: k.color, letterSpacing: "-0.5px", marginBottom: 4 }}>{k.value}</div>
-                    <div style={{ fontSize: 11, color: "#64748B", lineHeight: 1.4 }}>{k.sub}</div>
+                    <div style={{ fontSize: 11, color: "#5C5A52", lineHeight: 1.4 }}>{k.sub}</div>
                   </div>
                 ))}
               </div>
@@ -94,12 +94,12 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
               {/* Achievements */}
               {report.achievements?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>🏆 Key Achievements</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 10 }}>🏆 Key Achievements</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {report.achievements.map((a, i) => (
                       <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: 8 }}>
                         <span style={{ color: "#059669", flexShrink: 0 }}>✓</span>
-                        <span style={{ fontSize: 13, color: "#0F172A" }}>{a}</span>
+                        <span style={{ fontSize: 13, color: "#18170F" }}>{a}</span>
                       </div>
                     ))}
                   </div>
@@ -109,12 +109,12 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
               {/* Lessons Learned */}
               {report.lessonsLearned?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>📚 Lessons Learned</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 10 }}>📚 Lessons Learned</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {report.lessonsLearned.map((l, i) => (
-                      <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8 }}>
+                      <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", background: "#F8FAFC", border: "1px solid #E5E2D9", borderRadius: 8 }}>
                         <span style={{ color: "#2563EB", flexShrink: 0, fontWeight: 700 }}>{i + 1}.</span>
-                        <span style={{ fontSize: 13, color: "#0F172A" }}>{l}</span>
+                        <span style={{ fontSize: 13, color: "#18170F" }}>{l}</span>
                       </div>
                     ))}
                   </div>
@@ -124,12 +124,12 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
               {/* Recommendations */}
               {report.recommendations?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 10 }}>💡 Recommendations for Next Projects</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 10 }}>💡 Recommendations for Next Projects</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {report.recommendations.map((r, i) => (
                       <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8 }}>
                         <span style={{ color: "#D97706", flexShrink: 0 }}>→</span>
-                        <span style={{ fontSize: 13, color: "#0F172A" }}>{r}</span>
+                        <span style={{ fontSize: 13, color: "#18170F" }}>{r}</span>
                       </div>
                     ))}
                   </div>
@@ -137,7 +137,7 @@ export default function ClosureReport({ projectName, statusLogs }: { projectName
               )}
 
               {/* Generated by */}
-              <div style={{ textAlign: "center", fontSize: 11, color: "#CBD5E1", paddingTop: 8 }}>
+              <div style={{ textAlign: "center", fontSize: 11, color: "#CCC9BF", paddingTop: 8 }}>
                 Generated by AI Guardian · {new Date(reportLog.createdAt).toLocaleDateString("en-GB")}
               </div>
             </div>

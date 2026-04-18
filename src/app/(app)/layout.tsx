@@ -4,12 +4,41 @@ import { getAuthContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { Role } from "@prisma/client";
 import { db } from "@/lib/prisma";
+import { calculateHealth } from "@/lib/health";
 import TopbarClient from "./TopbarClient";
+import { SidebarNavLinks } from "./SidebarNav";
+import { InactivityModal } from "@/components/ui/inactivity-modal";
 
-const DOT_COLORS = [
-  "#E5291A","#D97708","#16A34A","#2563EB",
-  "#7C3AED","#0891B2","#059669","#EA580C",
-];
+const HEALTH_DOT: Record<string, string> = {
+  OFF_TRACK:   "#DC2626",
+  AT_RISK:     "#D97706",
+  ON_TRACK:    "#006D6B",
+  COMPLETED:   "#2563EB",
+  NOT_STARTED: "#CCC9BF",
+};
+
+const STATUS_DOT: Record<string, string> = {
+  NOT_STARTED: "#2563EB",
+  ACTIVE:      "#059669",
+  PAUSED:      "#D97706",
+  COMPLETED:   "#006D6B",
+  CLOSED:      "#DC2626",
+  ARCHIVED:    "#9E9C93",
+};
+
+const IC = {
+  dashboard: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  portfolio:  <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1 11L5 7l4 3 6-7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  financials: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/><path d="M8 4v8M6 10.5h3.5a1.5 1.5 0 000-3H6.5a1.5 1.5 0 010-3H10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  alerts:     <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5A4.5 4.5 0 003.5 6v3L2.5 11h11l-1-2V6A4.5 4.5 0 008 1.5zM6.5 13a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  archive:    <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1 5l2-3h10l2 3M6 10h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  team:       <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><circle cx="11" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M1 13c0-2.5 2-4.5 5-4.5s5 2 5 4.5M11 9c1.5.5 2.5 2 2.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  integrations: <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 8l-4 4M10 8l4-4M3 13a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM13 6a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM8 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  billing:    <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h13" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  roadmap:    <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 4h5M2 8h9M2 12h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="9" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="13" cy="8" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="10" cy="12" r="1.5" stroke="currentColor" strokeWidth="1.2"/></svg>,
+  settings:   <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.3 3.3l.7.7M12 12l.7.7M12 4l-.7.7M4 12l-.7.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  plus:       <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+};
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthContext();
@@ -17,215 +46,135 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const role = ctx.role as Role;
 
-  const [sidebarProjects, unreadCount] = await Promise.all([
+  const [rawProjects, unreadCount] = await Promise.all([
     db.project.findMany({
-      where:   { organisationId: ctx.org.id, status: { notIn: ["CLOSED", "ARCHIVED"] } },
-      select:  { id: true, name: true },
+      where: { organisationId: ctx.org.id, status: { notIn: ["CLOSED","ARCHIVED"] } },
+      select: {
+        id: true, name: true, status: true, startDate: true, endDate: true, budgetTotal: true,
+        sprints: { select: { status: true, features: { select: { status: true } } } },
+        risks: { select: { status: true, probability: true, impact: true } },
+        assignments: { select: { estimatedHours: true, actualHours: true, resource: { select: { costPerHour: true, capacityHours: true } } } },
+      },
       orderBy: { updatedAt: "desc" },
-      take: 8,
+      take: 10,
     }),
     db.alert.count({ where: { organisationId: ctx.org.id, read: false } }),
   ]);
 
-  const initials = (ctx.user.name ?? ctx.user.email)
-    .split(" ")
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const sidebarProjects = rawProjects.map(p => {
+    const allF       = p.sprints.flatMap(s => s.features);
+    const done       = allF.filter(f => f.status === "DONE").length;
+    const blocked    = allF.filter(f => f.status === "BLOCKED").length;
+    const inProg     = allF.filter(f => f.status === "IN_PROGRESS").length;
+    const costActual = p.assignments.reduce((s, a) => s + a.actualHours * a.resource.costPerHour, 0);
+    const costEst    = p.assignments.reduce((s, a) => s + a.estimatedHours * a.resource.costPerHour, 0);
+    const openRisks  = p.risks.filter(r => r.status === "OPEN").length;
+    const highRisks  = p.risks.filter(r => r.status === "OPEN" && r.probability * r.impact >= 9).length;
+    const maxRisk    = p.risks.filter(r => r.status === "OPEN").reduce((m, r) => Math.max(m, r.probability * r.impact), 0);
+    const h = calculateHealth({
+      startDate: p.startDate, endDate: p.endDate,
+      totalFeatures: allF.length, doneFeatures: done,
+      blockedFeatures: blocked, inProgressFeatures: inProg,
+      totalSprints: p.sprints.length,
+      doneSprints: p.sprints.filter(s => s.status === "DONE").length,
+      activeSprints: p.sprints.filter(s => s.status === "ACTIVE").length,
+      budgetTotal: p.budgetTotal, costActual, costEstimated: costEst,
+      totalCapacityHours: p.assignments.reduce((s, a) => s + a.resource.capacityHours, 0),
+      totalActualHours: p.assignments.reduce((s, a) => s + a.actualHours, 0),
+      openRisks, highRisks, maxRiskScore: maxRisk,
+    });
+    return { id: p.id, name: p.name, dot: STATUS_DOT[p.status] ?? HEALTH_DOT[h.status] ?? "#CCC9BF" };
+  });
+
+  const initials = (ctx.user.name ?? ctx.user.email ?? "U")
+    .split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  const mainNavItems = [
+    { href: "/dashboard", label: "Dashboard", icon: IC.dashboard },
+    { href: "/portfolio",  label: "Portfolio",      icon: IC.portfolio },
+    { href: "/cost",       label: "Financials",     icon: IC.financials },
+    { href: "/alerts",     label: "Alerts",         icon: IC.alerts, badge: unreadCount },
+  ];
+
+  const workspaceNavItems = [
+    { href: "/archive",               label: "Archive",      icon: IC.archive      },
+    { href: "/settings/team",         label: "Team",         icon: IC.team         },
+    { href: "/settings/integrations", label: "Integrations", icon: IC.integrations },
+    { href: "/settings/billing",      label: "Billing",      icon: IC.billing      },
+    { href: "/roadmap",               label: "Roadmap",      icon: IC.roadmap      },
+    { href: "/settings",              label: "Settings",     icon: IC.settings     },
+  ];
 
   return (
     <>
       <style>{`
-        .app-shell { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-
-        /* ── Topbar ── */
-        .topbar {
-          height: var(--topbar);
-          background: var(--surface);
-          border-bottom: 1px solid var(--border);
-          display: flex;
-          align-items: center;
-          padding: 0 14px;
-          gap: 8px;
-          flex-shrink: 0;
-          z-index: 20;
-        }
-        .logo { font-size:14px; font-weight:700; color:var(--text); letter-spacing:-.4px; text-decoration:none; }
-        .logo em { color:var(--guardian); font-style:normal; }
-        .top-nav { display:flex; gap:1px; margin-left:6px; }
-        .tl {
-          padding: 5px 11px;
-          font-size: 12px;
-          color: var(--text2);
-          cursor: pointer;
-          border-radius: 6px;
-          border: none;
-          background: none;
-          font-family: inherit;
-          text-decoration: none;
-          display: flex;
-          align-items: center;
-          transition: .12s;
-        }
-        .tl:hover { color:var(--text); background:var(--surface2); }
-        .tl.active { color:var(--text); background:var(--surface2); font-weight:500; }
-
-        /* ── Body ── */
-        .body-wrap { display:flex; flex:1; overflow:hidden; }
-
-        /* ── Sidebar ── */
-        .sidebar {
-          width: var(--sidebar);
-          background: var(--surface);
-          border-right: 1px solid var(--border);
-          display: flex;
-          flex-direction: column;
-          overflow-y: auto;
-          flex-shrink: 0;
-        }
-        .sb-sect { padding:12px 10px 3px; font-size:9px; font-weight:700; color:var(--text3); letter-spacing:.08em; text-transform:uppercase; }
-        .sb-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 10px;
-          font-size: 12px;
-          color: var(--text2);
-          cursor: pointer;
-          border-radius: 7px;
-          margin: 1px 5px;
-          transition: .1s;
-          border: none;
-          background: none;
-          width: calc(100% - 10px);
-          text-align: left;
-          font-family: inherit;
-          text-decoration: none;
-        }
-        .sb-item:hover { background:var(--surface2); color:var(--text); }
-        .sb-item.active { background:var(--surface2); color:var(--text); font-weight:500; }
-        .sb-badge { margin-left:auto; background:var(--red); color:#fff; border-radius:10px; font-size:9px; font-weight:700; padding:1px 5px; min-width:16px; text-align:center; }
-        .sb-div { height:1px; background:var(--border); margin:7px 14px; }
-        .sb-proj {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          padding: 5px 10px;
-          font-size: 12px;
-          color: var(--text2);
-          cursor: pointer;
-          border-radius: 7px;
-          margin: 1px 5px;
-          transition: .1s;
-          text-decoration: none;
-          overflow: hidden;
-        }
-        .sb-proj:hover { background:var(--surface2); color:var(--text); }
-        .sb-proj span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-        /* ── Main ── */
-        .main { flex:1; overflow-y:auto; background:var(--bg); }
-
-        /* ── Mobile ── */
-        @media (max-width: 768px) {
-          .sidebar { display: none; }
-          .top-nav { display: none; }
-        }
+        *, *::before, *::after { box-sizing: border-box }
+        .app      { display: flex; flex-direction: column; height: 100vh; overflow: hidden }
+        .topbar   { height: 52px; background: #FFFFFF; border-bottom: 1px solid #E5E2D9; display: flex; align-items: center; padding: 0 18px; gap: 8px; flex-shrink: 0; z-index: 20 }
+        .body-wrap { display: flex; flex: 1; overflow: hidden }
+        .sidebar  { width: 220px; background: #FFFFFF; border-right: 1px solid #E5E2D9; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0 }
+        .sb-inner { padding: 8px 0 16px; display: flex; flex-direction: column; flex: 1 }
+        .sb-sect  { padding: 14px 12px 4px; font-size: 9px; font-weight: 700; color: #9E9C93; letter-spacing: .09em; text-transform: uppercase }
+        .sb-div   { height: 1px; background: #E5E2D9; margin: 8px 12px; flex-shrink: 0 }
+        .sb-proj  { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: #5C5A52; border-radius: 7px; margin: 1px 6px; transition: .1s; text-decoration: none; overflow: hidden }
+        .sb-proj:hover { background: #F0EEE8; color: #18170F }
+        .p-dot    { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block }
+        .sb-proj-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+        .sb-new-proj { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px; text-decoration: none; font-size: 12px; color: #5C5A52; margin: 1px 6px; transition: .1s; border: none; background: none; cursor: pointer; font-family: inherit; width: calc(100% - 12px); text-align: left }
+        .sb-new-proj:hover { background: #F0EEE8; color: #18170F }
+        .main-area { flex: 1; overflow-y: auto; background: #F8F7F3; min-width: 0 }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes modalEnter { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes slideIn { from{transform:translateX(120%)} to{transform:translateX(0)} }
+        .g-dot-pulse { animation: blink 2s infinite }
       `}</style>
 
-      <div className="app-shell">
-        {/* ── Topbar ── */}
-        <div className="topbar">
-          <Link href="/dashboard" className="logo">Roadmap<em>AI</em></Link>
-
-          {/* Org name */}
-          <span style={{ fontSize: 11, color: 'var(--text2)', padding: '3px 9px', border: '1px solid var(--border)', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--guardian)', display: 'inline-block' }} className="g-dot-pulse" />
-            {ctx.org.name}
-          </span>
-
-          {/* Top nav links */}
-          <nav className="top-nav">
-            {[
-              { href: "/dashboard",  label: "Dashboard"  },
-              { href: "/portfolio",  label: "Portfolio"  },
-              { href: "/cost",       label: "Financials" },
-              { href: "/archive",    label: "Archive"    },
-            ].map(n => (
-              <Link key={n.href} href={n.href} className="tl">{n.label}</Link>
-            ))}
-          </nav>
-
-          {/* Right side — role switcher + alerts + avatar (client) */}
-          <div style={{ marginLeft: 'auto' }}>
-            <TopbarClient
-              unreadCount={unreadCount}
-              initials={initials}
-              preferredView={(ctx.user.preferredView ?? "PMO") as "PMO" | "CEO" | "STK" | "DEV"}
-            />
-          </div>
-        </div>
+      <div className="app">
+        <header className="topbar">
+          <TopbarClient
+            orgName={ctx.org.name}
+            unreadCount={unreadCount}
+            initials={initials}
+            preferredView={(ctx.user.preferredView ?? "PMO") as "PMO"|"CEO"|"STK"|"DEV"}
+          />
+        </header>
 
         <div className="body-wrap">
-          {/* ── Sidebar ── */}
           <aside className="sidebar">
-            <div style={{ padding: '6px 0 8px' }}>
-              <div className="sb-sect">Main</div>
-
-              {[
-                { href: "/dashboard", label: "Dashboard",  icon: "⊞" },
-                { href: "/portfolio", label: "Portfolio",  icon: "⟋" },
-                { href: "/cost",      label: "Financials", icon: "◈" },
-                { href: "/alerts",    label: "Alerts",     icon: "🔔", badge: unreadCount > 0 ? unreadCount : undefined },
-              ].map(n => (
-                <Link key={n.href} href={n.href} className="sb-item">
-                  <span style={{ fontSize: 13, width: 16, textAlign: 'center', flexShrink: 0 }}>{n.icon}</span>
-                  {n.label}
-                  {n.badge ? <span className="sb-badge">{n.badge > 9 ? "9+" : n.badge}</span> : null}
-                </Link>
-              ))}
+            <div className="sb-inner">
+              <div className="sb-sect">Overview</div>
+              <SidebarNavLinks items={mainNavItems} />
 
               <div className="sb-div" />
-              <div className="sb-sect">Projects</div>
 
-              {sidebarProjects.map((p, i) => (
+              <div className="sb-sect">Projects</div>
+              {sidebarProjects.map(p => (
                 <Link key={p.id} href={`/projects/${p.id}`} className="sb-proj">
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: DOT_COLORS[i % DOT_COLORS.length], flexShrink: 0 }} />
-                  <span>{p.name}</span>
+                  <span className="p-dot" style={{ background: p.dot }} />
+                  <span className="sb-proj-name">{p.name}</span>
                 </Link>
               ))}
-
               {can.createProject(role) && (
-                <Link href="/projects/new" className="sb-item" style={{ marginTop: 4, color: 'var(--guardian)', fontWeight: 600 }}>
-                  <span style={{ fontSize: 14, width: 16, textAlign: 'center' }}>+</span>
+                <Link href="/projects/new" className="sb-new-proj">
+                  <span style={{ width: 15, height: 15, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.55 }}>{IC.plus}</span>
                   New project
                 </Link>
               )}
 
               <div className="sb-div" />
-              <div className="sb-sect">Settings</div>
 
-              {[
-                { href: "/archive",         label: "Archive"      },
-                { href: "/settings/team",   label: "Team"         },
-                { href: "/settings",        label: "Settings"     },
-                { href: "/settings/billing",label: "Billing"      },
-              ].map(n => (
-                <Link key={n.href} href={n.href} className="sb-item">
-                  <span style={{ width: 16, flexShrink: 0 }} />
-                  {n.label}
-                </Link>
-              ))}
+              <div className="sb-sect">Workspace</div>
+              <SidebarNavLinks items={workspaceNavItems} />
             </div>
           </aside>
 
-          {/* ── Main content ── */}
-          <main className="main">
+          <main className="main-area">
             {children}
           </main>
         </div>
       </div>
+
+      <InactivityModal />
     </>
   );
 }

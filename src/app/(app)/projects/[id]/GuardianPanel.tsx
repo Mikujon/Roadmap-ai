@@ -110,7 +110,7 @@ export function GuardianPanel({
   const criticalCount = alerts.filter(a => a.level === "critical").length;
   const warningCount  = alerts.filter(a => a.level === "warning").length;
   const healthScore   = report?.healthScore ?? null;
-  const hsColor       = healthScore !== null ? (healthScore >= 80 ? "#059669" : healthScore >= 60 ? "#D97706" : "#DC2626") : "#94A3B8";
+  const hsColor       = healthScore !== null ? (healthScore >= 80 ? "#059669" : healthScore >= 60 ? "#D97706" : "#DC2626") : "#9E9C93";
  
   const contextLabel: Record<string, string> = {
     project:   "Project Guardian",
@@ -121,18 +121,18 @@ export function GuardianPanel({
   };
  
   return (
-    <div style={{ background: "#fff", border: `1px solid ${criticalCount > 0 ? "#FECACA" : "#E2E8F0"}`, borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
+    <div style={{ background: "#fff", border: `1px solid ${criticalCount > 0 ? "#FECACA" : "#E5E2D9"}`, borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
       {/* Header */}
       <div
-        style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: criticalCount > 0 ? "#FEF2F2" : "#FAFBFC", borderBottom: open ? "1px solid #F1F5F9" : "none" }}
+        style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: criticalCount > 0 ? "#FEF2F2" : "#FDFCFA", borderBottom: open ? "1px solid #F4F2EC" : "none" }}
         onClick={() => setOpen(o => !o)}
       >
         <div style={{ fontSize: 16 }}>🛡️</div>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{contextLabel[context]}</span>
-            {loading && <span style={{ fontSize: 10, color: "#94A3B8" }}>analyzing…</span>}
-            {!loading && lastRefresh && <span style={{ fontSize: 10, color: "#CBD5E1" }}>updated {lastRefresh}</span>}
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#18170F" }}>{contextLabel[context]}</span>
+            {loading && <span style={{ fontSize: 10, color: "#9E9C93" }}>analyzing…</span>}
+            {!loading && lastRefresh && <span style={{ fontSize: 10, color: "#CCC9BF" }}>updated {lastRefresh}</span>}
           </div>
           {!loading && report && (
             <div style={{ display: "flex", gap: 12, marginTop: 3 }}>
@@ -145,11 +145,11 @@ export function GuardianPanel({
         {healthScore !== null && (
           <div style={{ textAlign: "center", minWidth: 48 }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: hsColor, letterSpacing: "-1px" }}>{healthScore}</div>
-            <div style={{ fontSize: 9, color: "#94A3B8", fontWeight: 600 }}>HEALTH</div>
+            <div style={{ fontSize: 9, color: "#9E9C93", fontWeight: 600 }}>HEALTH</div>
           </div>
         )}
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button onClick={e => { e.stopPropagation(); load(); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#94A3B8", padding: "2px 6px" }} title="Refresh">↻</button>
+          <button onClick={e => { e.stopPropagation(); load(); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9E9C93", padding: "2px 6px" }} title="Refresh">↻</button>
          <button 
            onClick={async () => {
          await fetch(`/api/guardian/alert`, { 
@@ -164,7 +164,7 @@ export function GuardianPanel({
 >
   📧 Alert PM
 </button> 
-          <span style={{ fontSize: 11, color: "#94A3B8" }}>{open ? "▲" : "▼"}</span>
+          <span style={{ fontSize: 11, color: "#9E9C93" }}>{open ? "▲" : "▼"}</span>
         </div>
       </div>
  
@@ -174,7 +174,7 @@ export function GuardianPanel({
           {loading ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0" }}>
               <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid #006D6B", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-              <span style={{ fontSize: 12, color: "#94A3B8" }}>AI Guardian is analyzing your project…</span>
+              <span style={{ fontSize: 12, color: "#9E9C93" }}>AI Guardian is analyzing your project…</span>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : report ? (
@@ -189,8 +189,8 @@ export function GuardianPanel({
                     { label: "Est. Delay",    value: report.estimatedDelay! > 0 ? `+${report.estimatedDelay}d` : "None", color: report.estimatedDelay! > 0 ? "#DC2626" : "#059669" },
                     { label: "Risk Level",    value: (report.riskLevel ?? "low").toUpperCase(), color: RISK_COLOR[report.riskLevel ?? "low"] },
                   ].map(s => (
-                    <div key={s.label} style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 12px", textAlign: "center", border: "1px solid #F1F5F9" }}>
-                      <div style={{ fontSize: 9, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.label}</div>
+                    <div key={s.label} style={{ background: "#F8FAFC", borderRadius: 8, padding: "10px 12px", textAlign: "center", border: "1px solid #F4F2EC" }}>
+                      <div style={{ fontSize: 9, color: "#9E9C93", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.label}</div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.value}</div>
                     </div>
                   ))}
@@ -207,11 +207,11 @@ export function GuardianPanel({
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                           <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{lm.icon}</span>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A" }}>
-                              {a.projectName && context === "portfolio" && <span style={{ color: "#64748B", fontWeight: 500 }}>{a.projectName}: </span>}
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F" }}>
+                              {a.projectName && context === "portfolio" && <span style={{ color: "#5C5A52", fontWeight: 500 }}>{a.projectName}: </span>}
                               {a.title}
                             </div>
-                            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{a.detail}</div>
+                            <div style={{ fontSize: 11, color: "#5C5A52", marginTop: 2 }}>{a.detail}</div>
                             {a.action && (
                               <div style={{ fontSize: 11, color: lm.color, fontWeight: 600, marginTop: 4 }}>→ {a.action}</div>
                             )}
@@ -225,13 +225,13 @@ export function GuardianPanel({
  
               {/* Recommendations */}
               {report.recommendations && report.recommendations.length > 0 && (
-                <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "12px 14px", border: "1px solid #F1F5F9" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>💡 AI Recommendations</div>
+                <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "12px 14px", border: "1px solid #F4F2EC" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#18170F", marginBottom: 8 }}>💡 AI Recommendations</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                     {report.recommendations.map((r, i) => (
                       <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                         <span style={{ fontSize: 10, color: "#006D6B", fontWeight: 700, marginTop: 1, flexShrink: 0 }}>{i + 1}.</span>
-                        <span style={{ fontSize: 12, color: "#475569" }}>{r}</span>
+                        <span style={{ fontSize: 12, color: "#5C5A52" }}>{r}</span>
                       </div>
                     ))}
                   </div>
@@ -243,14 +243,14 @@ export function GuardianPanel({
                 <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "10px 14px", border: "1px solid #FECACA" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#DC2626", marginBottom: 6 }}>🚨 Top Portfolio Risks</div>
                   {report.topRisks.map((r, i) => (
-                    <div key={i} style={{ fontSize: 12, color: "#475569", marginBottom: 3 }}>• {r}</div>
+                    <div key={i} style={{ fontSize: 12, color: "#5C5A52", marginBottom: 3 }}>• {r}</div>
                   ))}
                 </div>
               )}
  
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: "#94A3B8", padding: "8px 0" }}>Unable to load Guardian analysis.</div>
+            <div style={{ fontSize: 12, color: "#9E9C93", padding: "8px 0" }}>Unable to load Guardian analysis.</div>
           )}
         </div>
       )}
@@ -308,31 +308,31 @@ export function GuardianFloatingButton({ projectId, context }: { projectId?: str
       {open && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", justifyContent: "flex-end" }} onClick={() => setOpen(false)}>
           <div style={{ width: 420, height: "100vh", background: "#fff", boxShadow: "-4px 0 32px rgba(0,0,0,0.12)", overflow: "auto", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: "20px 20px 0", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderBottom: "1px solid #F1F5F9", paddingBottom: 16 }}>
+            <div style={{ padding: "20px 20px 0", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderBottom: "1px solid #F4F2EC", paddingBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 18 }}>🛡️</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: "#0F172A" }}>AI Guardian</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "#18170F" }}>AI Guardian</span>
                 </div>
-                <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#94A3B8" }}>✕</button>
+                <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9E9C93" }}>✕</button>
               </div>
             </div>
             <div style={{ padding: "16px 20px", flex: 1 }}>
               {loading ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "20px 0" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid #006D6B", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-                  <span style={{ fontSize: 13, color: "#94A3B8" }}>Analyzing with AI…</span>
+                  <span style={{ fontSize: 13, color: "#9E9C93" }}>Analyzing with AI…</span>
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
               ) : report ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {/* Health score */}
                   {report.healthScore !== undefined && (
-                    <div style={{ textAlign: "center", padding: "16px 0", borderBottom: "1px solid #F1F5F9" }}>
+                    <div style={{ textAlign: "center", padding: "16px 0", borderBottom: "1px solid #F4F2EC" }}>
                       <div style={{ fontSize: 48, fontWeight: 900, color: report.healthScore >= 80 ? "#059669" : report.healthScore >= 60 ? "#D97706" : "#DC2626", letterSpacing: "-2px" }}>
                         {report.healthScore}
                       </div>
-                      <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>HEALTH SCORE</div>
+                      <div style={{ fontSize: 12, color: "#9E9C93", fontWeight: 600 }}>HEALTH SCORE</div>
                     </div>
                   )}
  
@@ -345,8 +345,8 @@ export function GuardianFloatingButton({ projectId, context }: { projectId?: str
                         { label: "Estimated Delay", value: report.estimatedDelay! > 0 ? `+${report.estimatedDelay} days` : "None", color: report.estimatedDelay! > 0 ? "#DC2626" : "#059669" },
                         { label: "Risk Level", value: (report.riskLevel ?? "low").toUpperCase(), color: RISK_COLOR[report.riskLevel ?? "low"] },
                       ].map(s => (
-                        <div key={s.label} style={{ background: "#F8FAFC", borderRadius: 10, padding: "12px 14px", border: "1px solid #F1F5F9" }}>
-                          <div style={{ fontSize: 9, color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.label}</div>
+                        <div key={s.label} style={{ background: "#F8FAFC", borderRadius: 10, padding: "12px 14px", border: "1px solid #F4F2EC" }}>
+                          <div style={{ fontSize: 9, color: "#9E9C93", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.label}</div>
                           <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
                         </div>
                       ))}
@@ -356,14 +356,14 @@ export function GuardianFloatingButton({ projectId, context }: { projectId?: str
                   {/* Alerts */}
                   {alerts.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#0F172A", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Alerts</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#18170F", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Alerts</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {alerts.map(a => {
                           const lm = LEVEL_META[a.level];
                           return (
                             <div key={a.id} style={{ background: lm.bg, border: `1px solid ${lm.border}`, borderRadius: 8, padding: "10px 12px" }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A", marginBottom: 2 }}>{lm.icon} {a.title}</div>
-                              <div style={{ fontSize: 11, color: "#475569" }}>{a.detail}</div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "#18170F", marginBottom: 2 }}>{lm.icon} {a.title}</div>
+                              <div style={{ fontSize: 11, color: "#5C5A52" }}>{a.detail}</div>
                               {a.action && <div style={{ fontSize: 11, color: lm.color, fontWeight: 600, marginTop: 4 }}>→ {a.action}</div>}
                             </div>
                           );
@@ -375,12 +375,12 @@ export function GuardianFloatingButton({ projectId, context }: { projectId?: str
                   {/* Recommendations */}
                   {report.recommendations && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#0F172A", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Recommendations</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#18170F", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Recommendations</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {report.recommendations.map((r, i) => (
-                          <div key={i} style={{ display: "flex", gap: 8, padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                          <div key={i} style={{ display: "flex", gap: 8, padding: "8px 10px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #F4F2EC" }}>
                             <span style={{ fontSize: 11, color: "#006D6B", fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
-                            <span style={{ fontSize: 12, color: "#475569" }}>{r}</span>
+                            <span style={{ fontSize: 12, color: "#5C5A52" }}>{r}</span>
                           </div>
                         ))}
                       </div>
