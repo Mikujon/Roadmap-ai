@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+// remove this duplicate
+// import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
 import { triggerGuardian } from "@/lib/guardian-trigger";
-import { emit } from "@roadmap/events";
 
 export async function PATCH(
   req: Request,
@@ -79,33 +80,8 @@ export async function PATCH(
   revalidatePath("/dashboard");
   revalidatePath("/portfolio");
   revalidatePath("/cost");
-
-  // Emit domain event (non-blocking — outbox poller dispatches to BullMQ)
-  if (body.status && body.status !== existing.status) {
-    await emit(db as any, {
-      type:          body.status === "BLOCKED" ? "feature.blocked" : "feature.status_changed",
-      aggregateType: "feature",
-      aggregateId:   id,
-      organisationId: ctx.org.id,
-      projectId:     project.id,
-      actorId:       ctx.user.id,
-      actorName:     ctx.user.name ?? ctx.user.email,
-      payload: body.status === "BLOCKED"
-        ? { featureId: id, featureTitle: existing.title, sprintId: existing.sprintId }
-        : {
-            featureId:    id,
-            featureTitle: existing.title,
-            from:         existing.status,
-            to:           body.status,
-            sprintId:     existing.sprintId,
-            sprintName:   existing.sprint.name,
-          },
-    } as any);
-  } else {
-    // Non-status mutations still need Guardian refresh
-    triggerGuardian(project.id, project.name);
-  }
-
+  triggerGuardian(project.id);
+  await db.guardianReport.deleteMany({ where: { projectId: project.id } });
   return NextResponse.json({ ok: true });
 }
   

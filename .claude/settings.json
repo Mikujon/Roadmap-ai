@@ -63,7 +63,11 @@
       "Bash(psql \"postgresql://postgres:Mikujon321@localhost:5432/roadmapai\" -c \"SELECT column_name FROM information_schema.columns WHERE table_name = 'Project' ORDER BY column_name;\")",
       "Bash(grep -n 'colonna\\\\|$queryRaw\\\\|$executeRaw' 'c:/Users/jetmir.gjeloshi/Desktop/roadmap-ai/src/app/api/projects/[id]/financial/route.ts')",
       "Bash(npx tsx *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST http://localhost:3000/api/projects -H \"Content-Type: application/json\" -d '{\"name\":\"test\"}')"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST http://localhost:3000/api/projects -H \"Content-Type: application/json\" -d '{\"name\":\"test\"}')",
+      "Bash(taskkill /PID 12052 /F)",
+      "Bash(cmd /c \"taskkill /PID 12052 /F\")",
+      "Bash(cmd /c \"netstat -ano | findstr :3001\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/projects)"
     ],
     "additionalDirectories": [
       "\\tmp",
