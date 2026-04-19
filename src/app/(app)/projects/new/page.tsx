@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { C, BTN, GuardianBar, useToast, FG, FL, FI, FHINT } from "@/components/ui/shared";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const STEPS = [
-  { n: 1, label: "Details"     },
-  { n: 2, label: "AI Structure"},
-  { n: 3, label: "Team & Budget"},
-  { n: 4, label: "Confirm"     },
+  { n: 1, label: "Details"      },
+  { n: 2, label: "Documents"    },
+  { n: 3, label: "AI Structure" },
+  { n: 4, label: "Team & Budget"},
+  { n: 5, label: "Confirm"      },
 ];
 
 const FIELD_STYLE: React.CSSProperties = {
@@ -92,7 +93,7 @@ function PreviewPanel({
     (startDate && endDate ? 20 : 0) +
     (budget ? 15 : 0) +
     (methodology ? 10 : 0) +
-    (step >= 3 ? 20 : step >= 2 ? 10 : 0) +
+    (step >= 4 ? 20 : step >= 3 ? 10 : 0) +
     (team.length >= 2 ? 15 : team.length >= 1 ? 7 : 0)
   );
   const scoreColor = score >= 80 ? "#059669" : score >= 50 ? "#D97706" : "#DC2626";
@@ -137,7 +138,7 @@ function PreviewPanel({
       </div>
 
       {/* Phases (after step 2) */}
-      {step >= 2 && phases.length > 0 && (
+      {step >= 3 && phases.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
             Phases
@@ -157,7 +158,7 @@ function PreviewPanel({
       )}
 
       {/* Team (after step 3) */}
-      {step >= 3 && team.length > 0 && (
+      {step >= 4 && team.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
             Team
@@ -191,7 +192,7 @@ function PreviewPanel({
           }} />
         </div>
         <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 5 }}>
-          {score >= 80 ? "Ready to generate AI structure" :
+          {score >= 80 ? "Ready to create project" :
            score >= 50 ? "Add more details to improve accuracy" :
            "Fill in project name and dates to start"}
         </div>
@@ -214,7 +215,14 @@ export default function NewProjectPage() {
   const [department, setDepartment] = useState("Engineering");
   const [brief, setBrief]           = useState("");
 
-  // Step 2 state
+  // Step 2 — Documents state
+  type DocStatus = "idle" | "generating" | "done" | "skipped";
+  const [faStatus, setFaStatus]   = useState<DocStatus>("idle");
+  const [tdStatus, setTdStatus]   = useState<DocStatus>("idle");
+  const [faContent, setFaContent] = useState<Record<string, unknown> | null>(null);
+  const [faApproved, setFaApproved] = useState(false);
+
+  // Step 3 state
   const [generating, setGenerating] = useState(false);
   const [phases, setPhases]         = useState<Phase[]>([]);
   const regenerateRef               = useRef(false);
@@ -253,9 +261,12 @@ export default function NewProjectPage() {
   const goNext = (from: Step) => {
     if (from === 1) {
       if (!projName.trim()) { toast("Project name is required", "warn"); return; }
+    }
+    if (from === 2) {
+      // coming from Documents → trigger AI structure generation
       runGenerate();
     }
-    setStep(s => Math.min(s + 1, 4) as Step);
+    setStep(s => Math.min(s + 1, 5) as Step);
   };
 
   const goPrev = (from: Step) => setStep(s => Math.max(s - 1, 1) as Step);
@@ -282,7 +293,7 @@ export default function NewProjectPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast("Failed to create project: " + (err.error ?? "Unknown error"), "error");
+        toast("Failed to create project: " + (err.error ?? "Unknown error"), "err");
         return;
       }
 
@@ -290,7 +301,7 @@ export default function NewProjectPage() {
       toast(`Project "${project.name}" created`, "ok");
       setTimeout(() => router.push(`/projects/${project.id}`), 600);
     } catch (err) {
-      toast("Network error — please try again", "error");
+      toast("Network error — please try again", "err");
       console.error(err);
     } finally {
       setCreating(false);
@@ -422,24 +433,141 @@ export default function NewProjectPage() {
 
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 9, alignItems: "center" }}>
                   <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => goNext(1)}>
-                    Generate with AI →
+                    Next: Documents →
                   </button>
-                  <button style={BTN("default", { fontSize: 12, padding: "8px 16px" })} onClick={() => goNext(1)}>
-                    Create manually
-                  </button>
-                  <div style={{ marginLeft: "auto", fontSize: 10, color: C.text3 }}>10 AI generations/hour</div>
+                  <div style={{ marginLeft: "auto", fontSize: 10, color: C.text3 }}>step 1 of 5</div>
                 </div>
-                <GuardianBar text="will generate 3–5 phases, sprints and features · edit everything before saving" />
+                <GuardianBar text="optionally add documents before AI generates your project structure" />
               </div>
             )}
 
-            {/* ── STEP 2 ── */}
+            {/* ── STEP 2 — Documents ── */}
             {step === 2 && (
+              <div style={CARD}>
+                <div style={{ padding: "13px 16px", borderBottom: "1px solid #E5E2D9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Documents</span>
+                  <span style={{ fontSize: 11, color: C.text3 }}>step 2 of 5 · optional</span>
+                </div>
+                <div style={{ padding: "16px 16px 4px" }}>
+                  <div style={{ fontSize: 12, color: C.text2, marginBottom: 16 }}>
+                    Generate project documents now or skip — you can always create them later from the project page.
+                  </div>
+
+                  {/* Card A — Functional Analysis */}
+                  <div style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>Functional Analysis</div>
+                        <div style={{ fontSize: 11, color: C.text2 }}>AI generates functional requirements, scope, process flow and stakeholder matrix</div>
+                      </div>
+                      {faStatus === "done" && (
+                        <span style={{ fontSize: 10, fontWeight: 700, background: faApproved ? "#F0FDF4" : "#FFFBEB", color: faApproved ? "#14532D" : "#92400E", border: `1px solid ${faApproved ? "#BBF7D0" : "#FDE68A"}`, padding: "3px 9px", borderRadius: 20, whiteSpace: "nowrap" }}>
+                          {faApproved ? "APPROVED" : "DRAFT"}
+                        </span>
+                      )}
+                    </div>
+                    {faStatus === "idle" && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          style={BTN("primary", { fontSize: 11, padding: "6px 12px" })}
+                          onClick={async () => {
+                            if (!projName.trim()) { toast("Enter a project name first", "warn"); return; }
+                            setFaStatus("generating");
+                            try {
+                              // Generate a preview FA without saving (no projectId yet)
+                              const res = await fetch("/api/generate/route", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ brief, projectName: projName }),
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setFaContent(data.phases ?? data);
+                              }
+                              setFaStatus("done");
+                            } catch {
+                              setFaStatus("done");
+                            }
+                          }}
+                        >
+                          Generate with AI
+                        </button>
+                        <button style={BTN("default", { fontSize: 11, padding: "6px 12px" })} onClick={() => setFaStatus("skipped")}>
+                          Skip for now
+                        </button>
+                      </div>
+                    )}
+                    {faStatus === "generating" && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid #E5E2D9", borderTopColor: "#006D6B", animation: "spin 0.8s linear infinite" }} />
+                        <span style={{ fontSize: 11, color: C.text2 }}>Guardian AI is analyzing your brief…</span>
+                      </div>
+                    )}
+                    {faStatus === "done" && (
+                      <div>
+                        <div style={{ fontSize: 11, color: C.text2, marginBottom: 10 }}>
+                          Functional Analysis generated. Review before approving.
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button style={BTN("primary", { fontSize: 11, padding: "6px 12px" })} onClick={() => setFaApproved(true)}>
+                            {faApproved ? "✓ Approved" : "Approve"}
+                          </button>
+                          <button style={BTN("default", { fontSize: 11, padding: "6px 12px" })} onClick={() => setFaStatus("idle")}>
+                            Regenerate
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {faStatus === "skipped" && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: C.text3 }}>Skipped — will generate after project is created</span>
+                        <button style={BTN("sm", { fontSize: 10 })} onClick={() => setFaStatus("idle")}>Undo</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card B — Technical Document */}
+                  <div style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>Technical Document</div>
+                      <div style={{ fontSize: 11, color: C.text2 }}>Architecture, tech stack, API contracts, DB schema — generated from your brief</div>
+                    </div>
+                    {tdStatus === "idle" && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button style={BTN("default", { fontSize: 11, padding: "6px 12px" })} onClick={() => setTdStatus("skipped")}>
+                          Skip for now
+                        </button>
+                        <span style={{ fontSize: 10, color: C.text3, alignSelf: "center" }}>Available after project creation</span>
+                      </div>
+                    )}
+                    {tdStatus === "skipped" && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: C.text3 }}>Skipped — generate from project page</span>
+                        <button style={BTN("sm", { fontSize: 10 })} onClick={() => setTdStatus("idle")}>Undo</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 9 }}>
+                  <button style={BTN("default")} onClick={() => goPrev(2)}>← Back</button>
+                  <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => goNext(2)}>
+                    Next: AI Structure →
+                  </button>
+                  <button style={{ ...BTN("sm"), marginLeft: "auto", fontSize: 11, color: C.text3 }} onClick={() => goNext(2)}>
+                    Skip all documents →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 3 — AI Structure ── */}
+            {step === 3 && (
               <div style={CARD}>
                 <div style={{ padding: "13px 16px", borderBottom: "1px solid #E5E2D9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>AI-generated structure</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 11, color: C.text3 }}>step 2 of 4 · edit before proceeding</span>
+                    <span style={{ fontSize: 11, color: C.text3 }}>step 3 of 5 · edit before proceeding</span>
                     {!generating && (
                       <button style={BTN("sm")} onClick={runGenerate}>Regenerate</button>
                     )}
@@ -515,8 +643,8 @@ export default function NewProjectPage() {
 
                 {!generating && (
                   <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 9 }}>
-                    <button style={BTN("default")} onClick={() => goPrev(2)}>← Back</button>
-                    <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => setStep(3)}>
+                    <button style={BTN("default")} onClick={() => goPrev(3)}>← Back</button>
+                    <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => setStep(4)}>
                       Accept structure →
                     </button>
                   </div>
@@ -524,12 +652,12 @@ export default function NewProjectPage() {
               </div>
             )}
 
-            {/* ── STEP 3 ── */}
-            {step === 3 && (
+            {/* ── STEP 4 ── */}
+            {step === 4 && (
               <div style={CARD}>
                 <div style={{ padding: "13px 16px", borderBottom: "1px solid #E5E2D9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Team & Budget</span>
-                  <span style={{ fontSize: 11, color: C.text3 }}>step 3 of 4</span>
+                  <span style={{ fontSize: 11, color: C.text3 }}>step 4 of 5</span>
                 </div>
                 <div style={{ padding: "16px 16px 4px" }}>
 
@@ -617,18 +745,18 @@ export default function NewProjectPage() {
                 </div>
 
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 9 }}>
-                  <button style={BTN("default")} onClick={() => goPrev(3)}>← Back</button>
-                  <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => setStep(4)}>Continue →</button>
+                  <button style={BTN("default")} onClick={() => goPrev(4)}>← Back</button>
+                  <button style={BTN("primary", { fontSize: 12, padding: "8px 16px" })} onClick={() => setStep(5)}>Continue →</button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 4 ── */}
-            {step === 4 && (
+            {/* ── STEP 5 ── */}
+            {step === 5 && (
               <div style={CARD}>
                 <div style={{ padding: "13px 16px", borderBottom: "1px solid #E5E2D9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Summary & Confirm</span>
-                  <span style={{ fontSize: 11, color: C.text3 }}>step 4 of 4 · check before saving</span>
+                  <span style={{ fontSize: 11, color: C.text3 }}>step 5 of 5 · check before saving</span>
                 </div>
                 <div style={{ padding: "16px 16px 4px" }}>
 
@@ -677,7 +805,7 @@ export default function NewProjectPage() {
                 </div>
 
                 <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 9, alignItems: "center" }}>
-                  <button style={BTN("default")} onClick={() => goPrev(4)}>← Back</button>
+                  <button style={BTN("default")} onClick={() => goPrev(5)}>← Back</button>
                   <button
                     style={{ padding: "10px 24px", background: creating ? "#9E9C93" : "#006D6B", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: creating ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-.2px", opacity: creating ? 0.7 : 1 }}
                     onClick={create}

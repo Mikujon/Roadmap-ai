@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth";
 import { z } from "zod";
 import { emit } from "@roadmap/events";
 import { triggerGuardian } from "@/lib/guardian-trigger";
+import { triggerAgents } from "@/lib/agent-triggers";
 
 const UpdateSprintSchema = z.object({
   status: z.enum(["UPCOMING", "ACTIVE"]).optional(),
@@ -63,6 +64,9 @@ export async function PATCH(
     // Non-event mutations still trigger Guardian via queue
     triggerGuardian(existing.projectId, existing.project.name);
   }
+
+  // Inline agents run regardless — works without Redis
+  triggerAgents("feature_updated", existing.projectId, ctx.org.id);
 
   return NextResponse.json(sprint);
 }

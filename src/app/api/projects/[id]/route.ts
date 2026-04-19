@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { triggerAgents } from "@/lib/agent-triggers";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity";
 import { generateClosureReport } from "@/lib/closure-report";
@@ -106,6 +107,11 @@ if (body.endDate !== undefined || body.budgetTotal !== undefined) {
       );
     }
   }
+  // Fire agents for budget/date changes — health & EVM need recomputing
+  if (body.budgetTotal !== undefined || body.endDate !== undefined) {
+    triggerAgents("budget_updated", id, ctx.org.id);
+  }
+
   return NextResponse.json(project);
 }
 

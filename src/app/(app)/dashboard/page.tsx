@@ -24,13 +24,18 @@ export default async function DashboardPage() {
   const projectCount = await db.project.count({ where: { organisationId: ctx.org.id } });
   if (projectCount === 0) redirect("/onboarding");
 
-  const [projects, alerts] = await Promise.all([
+  const [projects, alerts, lastReport] = await Promise.all([
     getProjects(ctx.org.id),
     db.alert.findMany({
       where:   { organisationId: ctx.org.id, read: false },
       include: { project: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       take: 20,
+    }),
+    db.guardianReport.findFirst({
+      where:   { project: { organisationId: ctx.org.id } },
+      orderBy: { updatedAt: "desc" },
+      select:  { updatedAt: true },
     }),
   ]);
 
@@ -114,6 +119,7 @@ export default async function DashboardPage() {
       projects={sorted}
       alerts={alerts as any}
       kpis={{ totalActive, atRiskCount, onTrackCount, budgetExposure, validationPending }}
+      lastAnalyzed={lastReport?.updatedAt.toISOString() ?? null}
     />
   );
 }

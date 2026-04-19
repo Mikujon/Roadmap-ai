@@ -302,8 +302,8 @@ export default function FAClient({ projectId, projectName, projectBrief, fa: ini
               {status === "PENDING_APPROVAL" && isApprover && (
                 <>
                   <button style={{ ...BTN("primary"), background: "#16A34A" }} onClick={doApprove}>✓ Approve</button>
-                  <button style={{ ...BTN("default"), color: "#EA580C", borderColor: "#FED7AA" }} onClick={() => setNoteModal("revision")}>Request Revision</button>
-                  <button style={{ ...BTN("default"), color: "#DC2626", borderColor: "#FECACA" }} onClick={() => setNoteModal("reject")}>✕ Reject</button>
+                  <button style={{ ...BTN("default"), color: "#EA580C", border: "1px solid #FED7AA" }} onClick={() => setNoteModal("revision")}>Request Revision</button>
+                  <button style={{ ...BTN("default"), color: "#DC2626", border: "1px solid #FECACA" }} onClick={() => setNoteModal("reject")}>✕ Reject</button>
                 </>
               )}
               {status === "APPROVED" && (

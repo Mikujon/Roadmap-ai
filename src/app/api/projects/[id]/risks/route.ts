@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { z } from "zod";
+import { triggerAgents } from "@/lib/agent-triggers";
 
 const Schema = z.object({
   title:       z.string().min(1).max(200),
@@ -61,6 +62,9 @@ export async function POST(
   const risk = await db.risk.create({
     data: { ...body, projectId: id },
   });
+
+  // Fire agents in background — don't block the response
+  triggerAgents("risk_added", id, ctx.org.id);
 
   return NextResponse.json(risk);
 }

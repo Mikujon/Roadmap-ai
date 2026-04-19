@@ -60,6 +60,7 @@ interface Props {
   projects: ProjectStat[];
   alerts: AlertItem[];
   kpis: KpiSet;
+  lastAnalyzed: string | null;
 }
 
 const fmt = (n: number) => {
@@ -222,10 +223,58 @@ const DEC_ACTION_STYLE: Record<string, React.CSSProperties> = {
   info:   { background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#1E3A8A" },
 };
 
-export default function DashboardClient({ orgName, userName, preferredView, projects, alerts, kpis }: Props) {
+const GUARDIAN_AGENTS = [
+  { label: "Risk Scanner",       desc: "Scans all projects for new risks on every sprint/feature change" },
+  { label: "EVM Calculator",     desc: "Recalculates SPI, CPI, EAC after every budget or progress change" },
+  { label: "Health Score",       desc: "Updates project health score on every mutation"                  },
+  { label: "Alert Generator",    desc: "Creates alerts when deadlines or thresholds are breached"        },
+  { label: "Report Generator",   desc: "Upserts Guardian report after each daily sweep"                 },
+  { label: "Dependency Monitor", desc: "Checks blocked feature and project dependencies"                },
+];
+
+function useRelativeTime(isoString: string | null) {
+  const [label, setLabel] = useState(() => formatRelativeTime(isoString));
+  useEffect(() => {
+    const id = setInterval(() => setLabel(formatRelativeTime(isoString)), 30_000);
+    return () => clearInterval(id);
+  }, [isoString]);
+  return label;
+}
+
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return "never";
+  const diffMs   = Date.now() - new Date(iso).getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1)  return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const hrs = Math.floor(diffMins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function nextCronLabel(): string {
+  const now  = new Date();
+  const next = new Date();
+  next.setUTCHours(8, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  const diffMs   = next.getTime() - now.getTime();
+  const hrs      = Math.floor(diffMs / (1000 * 60 * 60));
+  const mins     = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hrs}h ${mins}m`;
+}
+
+export default function DashboardClient({ orgName, userName, preferredView, projects, alerts, kpis, lastAnalyzed }: Props) {
   const [role, setRole] = useState<Role>(preferredView);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [approved, setApproved] = useState<Set<string>>(new Set());
+  const [nextScan, setNextScan] = useState(() => nextCronLabel());
+
+  const lastAnalyzedLabel = useRelativeTime(lastAnalyzed);
+
+  useEffect(() => {
+    const id = setInterval(() => setNextScan(nextCronLabel()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => setRole((e as CustomEvent<Role>).detail);
@@ -301,7 +350,7 @@ export default function DashboardClient({ orgName, userName, preferredView, proj
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M6 1v2M6 9v2M1 6h2M9 6h2M2.5 2.5l1.5 1.5M8 8l1.5 1.5M2.5 9.5L4 8M8 4l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             </svg>
-            Run agents
+            Next scan {nextScan}
           </button>
           <Link href="/projects/new" style={{
             fontSize: 11, fontWeight: 600, padding: "6px 14px", borderRadius: 7,
@@ -544,6 +593,53 @@ export default function DashboardClient({ orgName, userName, preferredView, proj
                 );
               })
             )}
+          </div>
+
+          {/* Guardian AI autonomous status */}
+          <div style={CARD}>
+            <div style={CARD_H}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#18170F" }}>Guardian AI</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="g-dot-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#006D6B" }} />
+                <span style={{ fontSize: 10, color: "#006D6B", fontWeight: 600 }}>Active</span>
+              </div>
+            </div>
+
+            {/* Status summary */}
+            <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E2D9", display: "flex", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }}>Monitoring</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#006D6B", lineHeight: 1 }}>{projects.length}</div>
+                <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 1 }}>active projects</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }}>Last analysis</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", lineHeight: 1 }}>{lastAnalyzedLabel}</div>
+                <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 1 }}>triggered on changes</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#9E9C93", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }}>Next sweep</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#18170F", lineHeight: 1 }}>{nextScan}</div>
+                <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 1 }}>daily @ 08:00 UTC</div>
+              </div>
+            </div>
+
+            {/* Agent list — read-only, autonomous */}
+            {GUARDIAN_AGENTS.map((agent, i) => (
+              <div key={agent.label} style={{
+                display: "flex", alignItems: "center", gap: 9, padding: "9px 14px",
+                borderBottom: i < GUARDIAN_AGENTS.length - 1 ? "1px solid #E5E2D9" : "none",
+              }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#A7F3D0", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#18170F" }}>{agent.label}</div>
+                  <div style={{ fontSize: 10, color: "#9E9C93", marginTop: 1 }}>{agent.desc}</div>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#059669", background: "#F0FDF4", border: "1px solid #BBF7D0", padding: "2px 7px", borderRadius: 20 }}>
+                  AUTO
+                </span>
+              </div>
+            ))}
           </div>
 
         </div>

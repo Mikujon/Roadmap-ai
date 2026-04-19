@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
 import { triggerGuardian } from "@/lib/guardian-trigger";
+import { triggerAgents } from "@/lib/agent-triggers";
 import { emit } from "@roadmap/events";
 
 export async function PATCH(
@@ -105,6 +106,10 @@ export async function PATCH(
     // Non-status mutations still need Guardian refresh
     triggerGuardian(project.id, project.name);
   }
+
+  // Inline agents run regardless — works without Redis
+  const event = body.status === "BLOCKED" ? "feature_blocked" : "feature_updated";
+  triggerAgents(event, project.id, ctx.org.id);
 
   return NextResponse.json({ ok: true });
 }
