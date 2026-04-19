@@ -63,7 +63,7 @@ Respond with ONLY valid JSON (no markdown, no backticks, no explanation):
 {
   "projectType": "detected type",
   "phases": [
-    { "id":"p1","num":1,"label":"Phase full name","sub":"Short subtitle (5-8 words)","accent":"#006D6B" }
+    { "id":"p1","num":1,"label":"Phase full name","sub":"Short subtitle (5-8 words)","accent":"#007A73" }
   ],
   "sprints": [
     {
@@ -92,7 +92,7 @@ RULES:
 - 2–4 phases based on project type
 - 2–5 sprints per phase
 - 4–10 features per sprint
-- Phase accents: Phase 1 "#006D6B", Phase 2 "#3B82F6", Phase 3 "#8B5CF6", Phase 4 "#F97316"
+- Phase accents: Phase 1 "#007A73", Phase 2 "#3B82F6", Phase 3 "#8B5CF6", Phase 4 "#F97316"
 - Distribute sprint dates evenly between ${body.startDate} and ${body.endDate}
 - First sprint status: "active", all others: "upcoming"
 - Feature status: always "todo"

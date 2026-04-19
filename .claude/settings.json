@@ -61,7 +61,8 @@
       "Bash(grep -rn \"\\\\\"colonna\\\\\"\\\\|'colonna'\\\\|\\\\`colonna\\\\`\" c:/Users/jetmir.gjeloshi/Desktop/roadmap-ai/ --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.sql\")",
       "Bash(grep -rn '\\\\$queryRaw\\\\|queryRawUnsafe\\\\|executeRaw' c:/Users/jetmir.gjeloshi/Desktop/roadmap-ai/src/)",
       "Bash(psql \"postgresql://postgres:Mikujon321@localhost:5432/roadmapai\" -c \"SELECT column_name FROM information_schema.columns WHERE table_name = 'Project' ORDER BY column_name;\")",
-      "Bash(grep -n 'colonna\\\\|$queryRaw\\\\|$executeRaw' 'c:/Users/jetmir.gjeloshi/Desktop/roadmap-ai/src/app/api/projects/[id]/financial/route.ts')"
+      "Bash(grep -n 'colonna\\\\|$queryRaw\\\\|$executeRaw' 'c:/Users/jetmir.gjeloshi/Desktop/roadmap-ai/src/app/api/projects/[id]/financial/route.ts')",
+      "Bash(npx tsx *)"
     ],
     "additionalDirectories": [
       "\\tmp",
