@@ -8,6 +8,7 @@ import { calculateHealth } from "@/lib/health";
 import TopbarClient from "./TopbarClient";
 import { SidebarNavLinks } from "./SidebarNav";
 import { InactivityModal } from "@/components/ui/inactivity-modal";
+import PortfolioSubNav from "./PortfolioSubNav";
 
 const HEALTH_DOT: Record<string, string> = {
   OFF_TRACK:   "#DC2626",
@@ -89,21 +90,42 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initials = (ctx.user.name ?? ctx.user.email ?? "U")
     .split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-  const mainNavItems = [
-    { href: "/dashboard", label: "Dashboard", icon: IC.dashboard },
-    { href: "/portfolio",  label: "Portfolio",      icon: IC.portfolio },
-    { href: "/cost",       label: "Financials",     icon: IC.financials },
-    { href: "/alerts",     label: "Alerts",         icon: IC.alerts, badge: unreadCount },
-  ];
+  const preferredView = (ctx.user.preferredView ?? "PMO") as "PMO" | "CEO" | "STK" | "DEV";
 
-  const workspaceNavItems = [
-    { href: "/archive",               label: "Archive",      icon: IC.archive      },
-    { href: "/settings/team",         label: "Team",         icon: IC.team         },
-    { href: "/settings/integrations", label: "Integrations", icon: IC.integrations },
-    { href: "/settings/billing",      label: "Billing",      icon: IC.billing      },
-    { href: "/roadmap",               label: "Roadmap",      icon: IC.roadmap      },
-    { href: "/settings",              label: "Settings",     icon: IC.settings     },
+  // Role-aware main nav
+  const mainNavItemsBase = [
+    { href: "/dashboard", label: "Dashboard", icon: IC.dashboard },
+    ...(preferredView !== "DEV" ? [{ href: "/portfolio", label: "Portfolio", icon: IC.portfolio }] : []),
+    ...(preferredView === "DEV" ? [{ href: "/my-tasks", label: "My Tasks", icon: IC.roadmap }] : []),
+    ...(preferredView !== "STK" && preferredView !== "DEV"
+      ? [{ href: "/cost", label: "Financials", icon: IC.financials }]
+      : []),
+    ...(preferredView !== "STK" && preferredView !== "DEV"
+      ? [{ href: "/alerts", label: "Alerts", icon: IC.alerts, badge: unreadCount }]
+      : []),
   ];
+  const mainNavItems = mainNavItemsBase;
+
+  // Role-aware workspace nav
+  const workspaceNavItemsBase = [
+    { href: "/archive", label: "Archive", icon: IC.archive },
+    ...(preferredView === "PMO"
+      ? [
+          { href: "/settings/team",         label: "Team",         icon: IC.team         },
+          { href: "/settings/integrations", label: "Integrations", icon: IC.integrations },
+          { href: "/settings/billing",      label: "Billing",      icon: IC.billing      },
+          { href: "/roadmap",               label: "Roadmap",      icon: IC.roadmap      },
+          { href: "/settings",              label: "Settings",     icon: IC.settings     },
+        ]
+      : []),
+    ...(preferredView === "CEO"
+      ? [{ href: "/settings", label: "Settings", icon: IC.settings }]
+      : []),
+    ...(preferredView === "DEV"
+      ? [{ href: "/settings", label: "Settings", icon: IC.settings }]
+      : []),
+  ];
+  const workspaceNavItems = workspaceNavItemsBase;
 
   return (
     <>
@@ -144,6 +166,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div className="sb-inner">
               <div className="sb-sect">Overview</div>
               <SidebarNavLinks items={mainNavItems} />
+              {(preferredView === "PMO" || preferredView === "CEO") && (
+                <PortfolioSubNav />
+              )}
 
               <div className="sb-div" />
 

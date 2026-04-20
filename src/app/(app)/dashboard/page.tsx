@@ -7,6 +7,9 @@ import DashboardClient from "./DashboardClient";
 import CEODashboard from "./CEODashboard";
 import StakeholderDashboard from "./StakeholderDashboard";
 import DevDashboard from "./DevDashboard";
+import CEOInsights from "./CEOInsights";
+import StakeholderInsights from "./StakeholderInsights";
+import DevInsights from "./DevInsights";
 
 // Shared project query shape for PMO / CEO / STK
 const getProjects = (orgId: string, requestedById?: string) =>
@@ -129,7 +132,7 @@ export default async function DashboardPage() {
     const sprintTotal = activeSprint ? activeSprint.features.length : 0;
 
     return (
-      <DevDashboard
+      <DevInsights
         userName={ctx.user.name ?? ""}
         orgName={ctx.org.name}
         features={features as any}
@@ -143,25 +146,21 @@ export default async function DashboardPage() {
   // ── STK view ─────────────────────────────────────────────────────────────
   if (view === "STK") {
     const stkProjects = await getProjects(ctx.org.id, ctx.user.id);
-    const projectStats = computeProjectStats(stkProjects).sort((a, b) => b.riskScore - a.riskScore);
+    const stkStats = computeProjectStats(stkProjects).sort((a, b) => b.riskScore - a.riskScore);
 
     return (
-      <StakeholderDashboard
+      <StakeholderInsights
         userName={ctx.user.name ?? ""}
         orgName={ctx.org.name}
-        projects={projectStats.map(p => ({
-          id:             p.id,
-          name:           p.name,
-          status:         p.status,
-          health:         p.health,
-          healthScore:    p.healthScore,
-          pct:            p.pct,
-          daysLeft:       p.daysLeft,
-          budgetTotal:    p.budgetTotal,
-          costActual:     p.costActual,
-          costEstimated:  p.costEstimated,
-          openRisks:      p.openRisks,
-          sprintName:     p.sprintName,
+        myProjects={stkStats.map(p => ({
+          id:            p.id,
+          name:          p.name,
+          status:        p.status,
+          health:        p.health,
+          pct:           p.pct,
+          daysLeft:      p.daysLeft,
+          nextMilestone: p.upcomingSprints[0]?.endDate ?? null,
+          budgetUsedPct: p.budgetTotal > 0 ? Math.round((p.costActual / p.budgetTotal) * 100) : 0,
         }))}
       />
     );
@@ -188,33 +187,57 @@ export default async function DashboardPage() {
 
   // ── CEO view ──────────────────────────────────────────────────────────────
   if (view === "CEO") {
+    const ceoPortfolioHealth = projectStats.length > 0
+      ? Math.round(projectStats.reduce((s, p) => s + p.healthScore, 0) / projectStats.length)
+      : 0;
+    const ceoBudgetExposure = projectStats.reduce((s, p) => s + Math.max(0, p.budgetVariance), 0);
+    const ceoCriticalCount  = projectStats.filter(p => p.health === "OFF_TRACK" || p.health === "AT_RISK").length;
+    const ceoOnTimePct      = projectStats.length > 0
+      ? Math.round(projectStats.filter(p => p.spi >= 0.9).length / projectStats.length * 100)
+      : 100;
+
+    const ceoDecisions: { id: string; projectId: string; projectName: string; title: string; impact: string; priority: "urgent" | "watch" }[] = [];
+    for (const p of projectStats) {
+      if (p.health === "OFF_TRACK") {
+        ceoDecisions.push({ id: `ot-${p.id}`, projectId: p.id, projectName: p.name, title: `${p.name} is off track`, impact: `Health ${p.healthScore}/100 · SPI ${p.spi.toFixed(2)} · CPI ${p.cpi.toFixed(2)}`, priority: "urgent" });
+      }
+      if (p.budgetVariance > 20000 || (p.budgetTotal > 0 && p.budgetVariance / p.budgetTotal > 0.15)) {
+        ceoDecisions.push({ id: `bv-${p.id}`, projectId: p.id, projectName: p.name, title: `${p.name} — budget approval needed`, impact: `Forecast overrun · CPI ${p.cpi.toFixed(2)}`, priority: "urgent" });
+      }
+      if (p.highRisks >= 2) {
+        ceoDecisions.push({ id: `hr-${p.id}`, projectId: p.id, projectName: p.name, title: `${p.name} — ${p.highRisks} critical risks`, impact: `${p.openRisks} open risks · Health ${p.healthScore}/100`, priority: "watch" });
+      }
+    }
+
+    const ceoCriticalAlerts = alerts
+      .filter((a: any) => a.level === "critical")
+      .map((a: any) => ({
+        id: a.id, title: a.title, detail: a.detail,
+        projectId: a.project?.id, projectName: a.project?.name,
+      }));
+
     return (
-      <CEODashboard
-        userName={ctx.user.name ?? ""}
-        orgName={ctx.org.name}
-        lastAnalyzed={lastAnalyzed}
-        projects={projectStats.map(p => {
-          const raw = projects.find(proj => proj.id === p.id);
-          return {
-            id:             p.id,
-            name:           p.name,
-            status:         p.status,
-            health:         p.health,
-            healthScore:    p.healthScore,
-            pct:            p.pct,
-            budgetTotal:    p.budgetTotal,
-            costForecast:   p.costForecast,
-            budgetVariance: p.budgetVariance,
-            daysLeft:       p.daysLeft,
-            spi:            p.spi,
-            cpi:            p.cpi,
-            openRisks:      p.openRisks,
-            highRisks:      p.highRisks,
-            startDate:      raw?.startDate?.toISOString(),
-            endDate:        raw?.endDate?.toISOString(),
-          };
-        })}
-      />
+      <div style={{ padding: "24px 28px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#18170F", letterSpacing: "-.4px" }}>
+            Portfolio intelligence
+          </div>
+          <div style={{ fontSize: 11, color: "#5C5A52", marginTop: 4 }}>
+            {ctx.org.name} · <strong style={{ color: "#7C3AED" }}>CEO view</strong> · {projectStats.length} projects
+          </div>
+        </div>
+        <CEOInsights
+          portfolioHealth={ceoPortfolioHealth}
+          budgetExposure={ceoBudgetExposure}
+          criticalCount={ceoCriticalCount}
+          onTimePct={ceoOnTimePct}
+          avgHealth={ceoPortfolioHealth}
+          totalProjects={projectStats.length}
+          decisions={ceoDecisions}
+          criticalAlerts={ceoCriticalAlerts}
+          lastAnalyzed={lastAnalyzed}
+        />
+      </div>
     );
   }
 
