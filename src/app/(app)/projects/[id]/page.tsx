@@ -33,6 +33,19 @@ export default async function ProjectPage({
 
   const metrics = getProjectMetrics(project as any);
 
+  function getPhaseDate(
+    phaseIndex: number,
+    totalPhases: number,
+    projectStart: Date,
+    projectEnd: Date,
+    edge: "start" | "end"
+  ): Date {
+    const totalMs = projectEnd.getTime() - projectStart.getTime();
+    const phaseMs = totalMs / totalPhases;
+    if (edge === "start") return new Date(projectStart.getTime() + phaseIndex * phaseMs);
+    return new Date(projectStart.getTime() + (phaseIndex + 1) * phaseMs);
+  }
+
   const activeSprint = project.sprints.find(s => s.status === "ACTIVE") ?? project.sprints[project.sprints.length - 1] ?? null;
   const totalPts = activeSprint?.features.reduce((s: number, f: any) => s + (f.storyPoints ?? 0), 0) ?? 0;
   const donePts  = activeSprint?.features.filter((f: any) => f.status === "DONE").reduce((s: number, f: any) => s + (f.storyPoints ?? 0), 0) ?? 0;
@@ -64,14 +77,24 @@ export default async function ProjectPage({
         costActual:      metrics.costActual,
         alerts:          metrics.health.alerts as any[],
       }}
-      phases={project.phases.map((ph: any) => ({
-        id:        ph.id,
-        name:      ph.name,
-        startDate: ph.startDate?.toISOString() ?? null,
-        endDate:   ph.endDate?.toISOString()   ?? null,
-        status:    ph.status,
-        pct:       ph.completionPct ?? 0,
-      }))}
+      phases={project.phases.map((ph: any, i: number) => {
+        const pStart = ph.startDate ?? getPhaseDate(i, project.phases.length, project.startDate, project.endDate, "start");
+        const pEnd   = ph.endDate   ?? getPhaseDate(i, project.phases.length, project.startDate, project.endDate, "end");
+        const now    = new Date();
+        const pct    = ph.completionPct > 0 ? ph.completionPct
+          : now < pStart ? 0
+          : now > pEnd   ? 100
+          : Math.round((now.getTime() - pStart.getTime()) / (pEnd.getTime() - pStart.getTime()) * 100);
+        const status = pct === 100 ? "DONE" : pct > 0 ? "IN_PROGRESS" : (ph.status ?? "PLANNED");
+        return {
+          id:        ph.id,
+          name:      ph.label ?? ph.name ?? `Phase ${i + 1}`,
+          startDate: pStart.toISOString(),
+          endDate:   pEnd.toISOString(),
+          status,
+          pct,
+        };
+      })}
       activeSprint={activeSprint ? {
         id:        activeSprint.id,
         name:      activeSprint.name,

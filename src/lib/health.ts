@@ -109,6 +109,46 @@ export function calculateHealth(input: HealthInput): HealthReport {
     progressNominal - blockPenalty - (scheduleGap < -20 ? Math.abs(scheduleGap) * 0.2 : 0)
   ));
 
+  // Guard: brand new project with no features
+  const projectAgePercent = (elapsedDays / totalDays) * 100;
+  if (input.totalFeatures === 0 && projectAgePercent < 10) {
+    return {
+      status: "ON_TRACK" as HealthStatus,
+      healthScore: 80,
+      progressNominal: 0,
+      progressReal: 0,
+      ev: 0, pv: 0, ac: 0,
+      bac: input.budgetTotal,
+      spi: 1.0, cpi: 1.0,
+      eac: input.budgetTotal,
+      etc: input.budgetTotal,
+      vac: 0, sv: 0, cv: 0, tcpi: 1.0,
+      daysLeft, delayDays: 0,
+      plannedPct, scheduleGap: 0,
+      endForecast: end,
+      forecastMode: "new_project",
+      costForecast: input.budgetTotal,
+      budgetDelta: 0,
+      budgetRisk: "none" as BudgetRisk,
+      burnRateActual: 0,
+      burnRatePlanned: input.budgetTotal / totalDays,
+      costEfficiency: 100,
+      utilization: 0,
+      overloaded: false,
+      riskLevel: "low" as RiskLevel,
+      onTrackProbability: 85,
+      alerts: [{
+        id: "new-project",
+        level: "info" as const,
+        category: "progress" as const,
+        title: "Project just started",
+        detail: "No features added yet. Add tasks to start tracking progress.",
+        action: "Go to Board and add features to Sprint 1.",
+        impact: "low" as const
+      }]
+    };
+  }
+
   // ── EVM Core Calculations ─────────────────────────────────────────────
   const bac = input.budgetTotal > 0 ? input.budgetTotal : input.costEstimated;
   const ac  = input.costActual;
