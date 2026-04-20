@@ -130,6 +130,21 @@ export default async function ProjectPage({
         capacityHours:  a.resource.capacityHours,
       }))}
       teamLead={teamLead}
+      allSprints={project.sprints.map((s: any) => ({
+        id:        s.id,
+        name:      s.name,
+        startDate: s.startDate?.toISOString() ?? null,
+        endDate:   s.endDate?.toISOString()   ?? null,
+        status:    s.status,
+        phaseId:   s.phaseId ?? null,
+        features:  s.features.map((f: any) => ({
+          id:             f.id,
+          title:          f.title,
+          status:         f.status,
+          priority:       f.priority,
+          estimatedHours: f.estimatedHours ?? null,
+        })),
+      }))}
     />
   );
 }

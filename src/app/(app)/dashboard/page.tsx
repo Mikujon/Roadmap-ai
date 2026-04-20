@@ -193,22 +193,27 @@ export default async function DashboardPage() {
         userName={ctx.user.name ?? ""}
         orgName={ctx.org.name}
         lastAnalyzed={lastAnalyzed}
-        projects={projectStats.map(p => ({
-          id:             p.id,
-          name:           p.name,
-          status:         p.status,
-          health:         p.health,
-          healthScore:    p.healthScore,
-          pct:            p.pct,
-          budgetTotal:    p.budgetTotal,
-          costForecast:   p.costForecast,
-          budgetVariance: p.budgetVariance,
-          daysLeft:       p.daysLeft,
-          spi:            p.spi,
-          cpi:            p.cpi,
-          openRisks:      p.openRisks,
-          highRisks:      p.highRisks,
-        }))}
+        projects={projectStats.map(p => {
+          const raw = projects.find(proj => proj.id === p.id);
+          return {
+            id:             p.id,
+            name:           p.name,
+            status:         p.status,
+            health:         p.health,
+            healthScore:    p.healthScore,
+            pct:            p.pct,
+            budgetTotal:    p.budgetTotal,
+            costForecast:   p.costForecast,
+            budgetVariance: p.budgetVariance,
+            daysLeft:       p.daysLeft,
+            spi:            p.spi,
+            cpi:            p.cpi,
+            openRisks:      p.openRisks,
+            highRisks:      p.highRisks,
+            startDate:      raw?.startDate?.toISOString(),
+            endDate:        raw?.endDate?.toISOString(),
+          };
+        })}
       />
     );
   }

@@ -1,11 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import QuarterView from "@/components/views/QuarterView";
+import PortfolioGantt from "@/components/views/PortfolioGantt";
 
 interface ProjectStat {
   id: string; name: string; status: string; health: string; healthScore: number;
   pct: number; budgetTotal: number; costForecast: number; budgetVariance: number;
   daysLeft: number; spi: number; cpi: number; openRisks: number; highRisks: number;
+  startDate?: string; endDate?: string;
 }
 
 interface DecisionItem {
@@ -151,6 +154,36 @@ export default function CEODashboard({ userName, orgName, projects, lastAnalyzed
           </div>
         ))}
       </div>
+
+      {/* Quarter view */}
+      {projects.some(p => p.startDate && p.endDate) && (
+        <div style={{ marginBottom: 12 }}>
+          <QuarterView
+            projects={projects
+              .filter(p => p.startDate && p.endDate)
+              .map(p => ({
+                id: p.id, name: p.name,
+                startDate: p.startDate!, endDate: p.endDate!,
+                healthScore: p.healthScore, health: p.health, progress: p.pct,
+              }))}
+          />
+        </div>
+      )}
+
+      {/* Portfolio Gantt */}
+      {projects.some(p => p.startDate && p.endDate) && (
+        <div style={{ marginBottom: 12 }}>
+          <PortfolioGantt
+            projects={projects
+              .filter(p => p.startDate && p.endDate)
+              .map(p => ({
+                id: p.id, name: p.name,
+                startDate: p.startDate!, endDate: p.endDate!,
+                health: p.health, healthScore: p.healthScore, progress: p.pct,
+              }))}
+          />
+        </div>
+      )}
 
       {/* 2-col grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>

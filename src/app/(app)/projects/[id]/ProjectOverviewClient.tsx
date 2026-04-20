@@ -5,6 +5,9 @@ import { C, CARD, CARD_H, CARD_T, CARD_S, BTN, Tag, GuardianBar, RiskScore, Memb
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ModalAddFeature, ModalAddRisk, ModalScopeChange, ModalEscalate, ModalAiMitigation } from "@/components/ui/project-modals";
 import { ProjectChat, ChatButton } from "@/components/ui/project-chat";
+import GanttView from "@/components/views/GanttView";
+import TimelineView from "@/components/views/TimelineView";
+import SprintWeekView from "@/components/views/SprintWeekView";
 
 type HealthStatus = "OFF_TRACK" | "AT_RISK" | "ON_TRACK" | "COMPLETED" | "NOT_STARTED";
 
@@ -33,6 +36,16 @@ interface MemberData {
   estimatedHours: number; actualHours: number; capacityHours: number;
 }
 
+interface AllSprintItem {
+  id: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+  phaseId?: string | null;
+  features: { id: string; title: string; status: string; priority: string; estimatedHours: number | null }[];
+}
+
 interface Props {
   projectId: string;
   project: ProjectData;
@@ -42,6 +55,7 @@ interface Props {
   risks: RiskData[];
   assignments: MemberData[];
   teamLead: string;
+  allSprints?: AllSprintItem[];
 }
 
 const HEALTH_TAG: Record<HealthStatus, { v: "r"|"a"|"g"|"b"|"n"; label: string }> = {
@@ -102,7 +116,10 @@ const PROJECT_STATUS_META: Record<string, { label: string; color: string; bg: st
 
 const STATUS_ORDER = ["NOT_STARTED","ACTIVE","PAUSED","COMPLETED","CLOSED","ARCHIVED"];
 
-export default function ProjectOverviewClient({ projectId, project, metrics, phases, activeSprint, risks, assignments, teamLead }: Props) {
+type ProjectTab = "overview" | "gantt" | "timeline" | "sprint-week";
+
+export default function ProjectOverviewClient({ projectId, project, metrics, phases, activeSprint, risks, assignments, teamLead, allSprints = [] }: Props) {
+  const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [showAddFeature, setShowAddFeature] = useState(false);
   const [showAddRisk, setShowAddRisk]       = useState(false);
   const [showScopeChange, setShowScopeChange] = useState(false);
@@ -138,6 +155,53 @@ export default function ProjectOverviewClient({ projectId, project, metrics, pha
   return (
     <div style={{ padding: "24px 28px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <Breadcrumb items={[{ label: "Portfolio", href: "/portfolio" }, { label: project.name }]} />
+
+      {/* ── View tabs ── */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 20, background: "#F4F2EC", border: "1px solid #E5E2D9", borderRadius: 10, padding: 3, width: "fit-content" }}>
+        {([
+          ["overview",    "Overview"],
+          ["gantt",       "Gantt"],
+          ["timeline",    "Timeline"],
+          ["sprint-week", "Sprint Week"],
+        ] as [ProjectTab, string][]).map(([t, l]) => (
+          <button key={t} onClick={() => setActiveTab(t)} style={{
+            fontSize: 11, fontWeight: 600, padding: "5px 14px", borderRadius: 7,
+            border: "none", cursor: "pointer", fontFamily: "inherit",
+            background: activeTab === t ? "#18170F" : "transparent",
+            color: activeTab === t ? "#fff" : "#5C5A52",
+          }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Gantt tab ── */}
+      {activeTab === "gantt" && (
+        <GanttView
+          phases={phases.map(ph => ({ id: ph.id, name: ph.name, startDate: ph.startDate, endDate: ph.endDate, status: ph.status, pct: ph.pct }))}
+          sprints={allSprints.map(s => ({ id: s.id, name: s.name, startDate: s.startDate, endDate: s.endDate, status: s.status, phaseId: s.phaseId, features: s.features }))}
+          projectStart={new Date(project.startDate)}
+          projectEnd={new Date(project.endDate)}
+        />
+      )}
+
+      {/* ── Timeline tab ── */}
+      {activeTab === "timeline" && (
+        <TimelineView
+          phases={phases.map(ph => ({ id: ph.id, name: ph.name, startDate: ph.startDate, endDate: ph.endDate, status: ph.status, pct: ph.pct }))}
+          sprints={allSprints.map(s => ({ id: s.id, name: s.name, startDate: s.startDate, endDate: s.endDate, status: s.status, phaseId: s.phaseId }))}
+          projectStart={new Date(project.startDate)}
+          projectEnd={new Date(project.endDate)}
+        />
+      )}
+
+      {/* ── Sprint Week tab ── */}
+      {activeTab === "sprint-week" && (
+        <SprintWeekView sprints={allSprints} />
+      )}
+
+      {/* ── Overview tab ── */}
+      {activeTab !== "overview" ? null : (<>
 
       {/* ── Page header ── */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 14, flexWrap: "wrap" }}>
@@ -389,6 +453,8 @@ export default function ProjectOverviewClient({ projectId, project, metrics, pha
           </div>
         </div>
       </div>
+
+      </>)}
 
       {/* ── Modals ── */}
       <ModalAddFeature   open={showAddFeature}    onClose={() => { setShowAddFeature(false);   toast("Feature added", "ok");         }} />
