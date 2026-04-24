@@ -114,7 +114,6 @@ RULES:
     data: {
       name: body.name,
       description: body.description,
-      functionalAnalysis: body.functionalAnalysis,
       startDate: new Date(body.startDate),
       endDate: new Date(body.endDate),
       organisationId: ctx.org.id,
@@ -133,8 +132,9 @@ RULES:
   });
  
   const phaseMap: Record<string, string> = {};
+  const projectWithPhases = project as typeof project & { phases: { id: string }[] };
   roadmap.phases.forEach((p: any, i: number) => {
-    phaseMap[String(p.num)] = project.phases[i].id;
+    phaseMap[String(p.num)] = projectWithPhases.phases[i].id;
   });
  
   for (const [si, s] of roadmap.sprints.entries()) {

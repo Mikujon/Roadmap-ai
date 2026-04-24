@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import Link from "next/link";
 import { getProjectMetrics } from "@/lib/metrics";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import ClosureReport from "./ClosureReport";
 
 export default async function ArchivePage() {
   const ctx = await getAuthContext();
@@ -18,6 +19,7 @@ export default async function ArchivePage() {
       assignments: { include: { resource: true } },
       requestedBy: { select: { name: true, email: true } },
       departments: { include: { department: true } },
+      statusLogs: { orderBy: { createdAt: "desc" } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -33,6 +35,7 @@ export default async function ArchivePage() {
       cpi:         m.health.cpi,
       closedAt:    p.updatedAt.toLocaleDateString("en-GB", { month: "short", year: "numeric" }),
       isCompleted,
+      statusLogs:  (p as any).statusLogs ?? [],
     };
   });
 
@@ -90,8 +93,9 @@ export default async function ArchivePage() {
                 <span className="tag" style={{ background: tag.bg, color: tag.color, borderColor: tag.border }}>
                   {tag.label}
                 </span>
+                <ClosureReport projectName={p.name} statusLogs={p.statusLogs} />
                 <Link href={`/projects/${p.id}`} className="btn-sm" style={{ marginLeft: 8 }}>
-                  {p.isCompleted ? "Closure report ↗" : "View"}
+                  View
                 </Link>
               </div>
             );

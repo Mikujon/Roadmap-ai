@@ -9,29 +9,37 @@ datasource db {
 }
 
 model Organisation {
-  id          String   @id @default(cuid())
-  clerkOrgId  String   @unique
-  name        String
-  slug        String   @unique
+  id             String   @id @default(cuid())
+  clerkOrgId     String   @unique
+  name           String
+  slug           String   @unique
   logoUrl        String?
   brandColor     String?  @default("#006D6B")
   documentHeader String?
   documentFooter String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  stripeCustomerId     String?  @unique
-  stripeSubscriptionId String?  @unique
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
   stripePriceId        String?
   subscriptionStatus   SubscriptionStatus @default(FREE)
   trialEndsAt          DateTime?
   currentPeriodEnd     DateTime?
 
-  members      Member[]
-  projects     Project[]
-  invitations  Invitation[]
-  resources    Resource[]
-  departments  Department[]
+  slackTeamId     String?
+  slackBotToken   String?
+  gmailEmail      String?
+  gmailWatchId    String?
+  teamsWebhookUrl String?
+  zoomAccountId   String?
+
+  members         Member[]
+  projects        Project[]
+  invitations     Invitation[]
+  resources       Resource[]
+  departments     Department[]
+  ambientMessages AmbientMessage[]
 
   @@map("organisations")
 }
@@ -50,7 +58,7 @@ model User {
   email         String   @unique
   name          String?
   avatarUrl     String?
-  preferredView String?  // "PMO"|"CEO"|"STK"|"DEV"
+  preferredView String? // "PMO"|"CEO"|"STK"|"DEV"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -62,12 +70,12 @@ model User {
 }
 
 model Member {
-  id             String   @id @default(cuid())
-  role           Role     @default(VIEWER)
-  joinedAt       DateTime @default(now())
+  id       String   @id @default(cuid())
+  role     Role     @default(VIEWER)
+  joinedAt DateTime @default(now())
 
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
@@ -83,19 +91,20 @@ enum Role {
 }
 
 model Invitation {
-  id             String       @id @default(cuid())
-  email          String
-  role           Role         @default(VIEWER)
-  token          String       @unique @default(cuid())
-  status         InviteStatus @default(PENDING)
-  expiresAt      DateTime
-  createdAt      DateTime     @default(now())
+  id        String       @id @default(cuid())
+  email     String
+  role      Role         @default(VIEWER)
+  token     String       @unique @default(cuid())
+  status    InviteStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
 
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@map("invitations")
 }
+
 enum InviteStatus {
   PENDING
   ACCEPTED
@@ -103,19 +112,18 @@ enum InviteStatus {
 }
 
 model Project {
-  id                 String        @id @default(cuid())
-  name               String
-  description        String?       @db.Text
-  briefText          String?       @db.Text
-  startDate          DateTime
-  endDate            DateTime
-  endDateForecast    DateTime?
-  status             ProjectStatus @default(ACTIVE)
-  shareToken         String?       @unique
-  shareEnabled       Boolean       @default(false)
-  category           String?
-  guardianReport     GuardianReport?
-  
+  id              String          @id @default(cuid())
+  name            String
+  description     String?         @db.Text
+  briefText       String?         @db.Text
+  startDate       DateTime
+  endDate         DateTime
+  endDateForecast DateTime?
+  status          ProjectStatus   @default(ACTIVE)
+  shareToken      String?         @unique
+  shareEnabled    Boolean         @default(false)
+  category        String?
+  guardianReport  GuardianReport?
 
   budgetTotal     Float @default(0)
   costActual      Float @default(0)
@@ -131,20 +139,21 @@ model Project {
   requestedById String?
   requestedBy   User?   @relation(fields: [requestedById], references: [id], onDelete: SetNull)
 
-  phases      Phase[]
-  sprints     Sprint[]
-  activities  Activity[]
-  risks       Risk[]
-  statusLogs   ProjectStatusLog[]
-  assignments ResourceAssignment[]
-  dependsOn   ProjectDependency[] @relation("dependent")
-  blockedBy   ProjectDependency[] @relation("blocker")
-  departments ProjectDepartment[]
+  phases             Phase[]
+  sprints            Sprint[]
+  activities         Activity[]
+  risks              Risk[]
+  statusLogs         ProjectStatusLog[]
+  assignments        ResourceAssignment[]
+  dependsOn          ProjectDependency[]  @relation("dependent")
+  blockedBy          ProjectDependency[]  @relation("blocker")
+  departments        ProjectDepartment[]
   alerts             Alert[]
   snapshots          ProjectSnapshot[]
   messages           ProjectMessage[]
   functionalAnalysis FunctionalAnalysis?
   documents          ProjectDocument[]
+  ambientMessages    AmbientMessage[]
 
   @@index([organisationId])
   @@index([organisationId, status])
@@ -194,21 +203,21 @@ model Resource {
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
-  assignments  ResourceAssignment[]
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignments      ResourceAssignment[]
+  departmentId     String?
+  department       Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   assignedFeatures Feature[]
 
   @@map("resources")
 }
 
 model Department {
-  id             String       @id @default(cuid())
-  name           String
-  budget         Float        @default(0)
-  color          String       @default("#007A73")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  budget    Float    @default(0)
+  color     String   @default("#007A73")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
@@ -265,12 +274,12 @@ enum RiskStatus {
 }
 
 model Phase {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   num    Int
   label  String
   sub    String?
-  accent String @default("#007A73")
-  order  Int    @default(0)
+  accent String  @default("#007A73")
+  order  Int     @default(0)
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -294,7 +303,7 @@ model Sprint {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   phaseId String?
-  phase   Phase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  phase   Phase?  @relation(fields: [phaseId], references: [id], onDelete: SetNull)
 
   features Feature[]
 
@@ -325,10 +334,10 @@ model Feature {
   sprintId String
   sprint   Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
 
-  dependsOn FeatureDependency[] @relation("dependant")
-  blockedBy FeatureDependency[] @relation("blocker")
-  assignedToId   String?
-  assignedTo     Resource? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  dependsOn    FeatureDependency[] @relation("dependant")
+  blockedBy    FeatureDependency[] @relation("blocker")
+  assignedToId String?
+  assignedTo   Resource?           @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
   @@index([sprintId])
   @@index([sprintId, status])
@@ -382,15 +391,16 @@ model Activity {
 }
 
 model ProjectStatusLog {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   status      ProjectStatus
   note        String?
   changedById String?
   changedBy   String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime      @default(now())
 }
+
 model GuardianReport {
   id             String   @id @default(cuid())
   projectId      String   @unique
@@ -407,29 +417,31 @@ model GuardianReport {
 
   @@map("guardian_reports")
 }
+
 model Alert {
-  id             String    @id @default(cuid())
-  organisationId String
-  projectId      String?
-  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  type           String    // "overdue", "spi_critical", "at_risk", "budget_critical", "blocked", "status_change", "milestone"
-  level          String    // "critical", "warning", "info"
-  title          String
-  detail         String
-  action         String?
-  read           Boolean   @default(false)
-  resolved       Boolean   @default(false)
-  emailSent      Boolean   @default(false)
-  requiresValidation Boolean  @default(false)
-  validatedBy    String?
-  validatedAt    DateTime?
-  createdAt      DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  organisationId     String
+  projectId          String?
+  project            Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type               String // "overdue", "spi_critical", "at_risk", "budget_critical", "blocked", "status_change", "milestone"
+  level              String // "critical", "warning", "info"
+  title              String
+  detail             String
+  action             String?
+  read               Boolean   @default(false)
+  resolved           Boolean   @default(false)
+  emailSent          Boolean   @default(false)
+  requiresValidation Boolean   @default(false)
+  validatedBy        String?
+  validatedAt        DateTime?
+  createdAt          DateTime  @default(now())
 
   @@index([organisationId])
   @@index([projectId])
   @@index([createdAt])
   @@map("alerts")
 }
+
 model ProjectSnapshot {
   id          String   @id @default(cuid())
   projectId   String
@@ -437,8 +449,8 @@ model ProjectSnapshot {
   version     Int
   name        String
   description String?
-  data        Json     // full project state (sprints, features, phases)
-  reason      String?  // why snapshot was taken
+  data        Json // full project state (sprints, features, phases)
+  reason      String? // why snapshot was taken
   createdBy   String?
   createdAt   DateTime @default(now())
 
@@ -450,14 +462,14 @@ model ProjectSnapshot {
 // Immutable append-only event store. Never updated, never deleted.
 model DomainEvent {
   id             String   @id @default(cuid())
-  type           String   // e.g. "feature.status_changed", "sprint.completed", "risk.opened"
-  aggregateType  String   // "project" | "sprint" | "feature" | "risk"
-  aggregateId    String   // the entity ID
+  type           String // e.g. "feature.status_changed", "sprint.completed", "risk.opened"
+  aggregateType  String // "project" | "sprint" | "feature" | "risk"
+  aggregateId    String // the entity ID
   organisationId String
   projectId      String?
-  actorId        String?  // user who triggered the event
+  actorId        String? // user who triggered the event
   actorName      String?
-  payload        Json     // full event payload (before + after state where relevant)
+  payload        Json // full event payload (before + after state where relevant)
   occurredAt     DateTime @default(now())
 
   outboxEvent OutboxEvent?
@@ -472,16 +484,16 @@ model DomainEvent {
 // Written in the same DB transaction as the domain event.
 // Worker polls for unprocessed rows and enqueues BullMQ jobs.
 model OutboxEvent {
-  id            String    @id @default(cuid())
-  domainEventId String    @unique
+  id            String      @id @default(cuid())
+  domainEventId String      @unique
   domainEvent   DomainEvent @relation(fields: [domainEventId], references: [id], onDelete: Cascade)
-  queue         String    // target BullMQ queue name
-  jobName       String    // BullMQ job name
-  payload       Json      // job data (may differ from domain event payload)
+  queue         String // target BullMQ queue name
+  jobName       String // BullMQ job name
+  payload       Json // job data (may differ from domain event payload)
   processedAt   DateTime? // null = pending
-  attempts      Int       @default(0)
+  attempts      Int         @default(0)
   lastError     String?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime    @default(now())
 
   @@index([processedAt])
   @@index([createdAt])
@@ -502,7 +514,7 @@ model FunctionalAnalysis {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  project  Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project  Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   versions FAVersion[]
 
   @@map("functional_analyses")
@@ -565,21 +577,21 @@ enum DocumentType {
 
 // ── Project Chat ───────────────────────────────────────────────────────────
 model ProjectMessage {
-  id          String      @id @default(cuid())
-  projectId   String
-  userId      String
-  userName    String
-  content     String      @db.Text
-  type        MessageType @default(TEXT)
-  mentions    String[]
-  replyToId   String?
-  editedAt    DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  userName  String
+  content   String      @db.Text
+  type      MessageType @default(TEXT)
+  mentions  String[]
+  replyToId String?
+  editedAt  DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  replyTo     ProjectMessage?  @relation("replies", fields: [replyToId], references: [id])
-  replies     ProjectMessage[] @relation("replies")
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  replyTo ProjectMessage?  @relation("replies", fields: [replyToId], references: [id])
+  replies ProjectMessage[] @relation("replies")
 
   @@index([projectId, createdAt])
   @@map("project_messages")
@@ -589,4 +601,27 @@ enum MessageType {
   TEXT
   SYSTEM
   COMMAND
+}
+
+// ── Ambient Intelligence ─────────────────────────────────────────────────────
+model AmbientMessage {
+  id          String   @id @default(cuid())
+  orgId       String
+  projectId   String?
+  platform    String
+  type        String
+  content     String   @db.Text
+  sender      String
+  summary     String?
+  confidence  Float?
+  extractions Json?
+  applied     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  orgIdRelation     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  projectIdRelation Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([projectId])
+  @@map("ambient_messages")
 }

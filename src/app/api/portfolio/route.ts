@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
 import { dbRead } from "@/lib/prisma";
-import { enqueueMatViewRefresh } from "@roadmap/queue";
 
 interface PortfolioSummaryRow {
   organisationId:    string;
@@ -34,9 +33,7 @@ export async function GET(req: Request) {
   const url     = new URL(req.url);
   const refresh = url.searchParams.get("refresh") === "true";
 
-  if (refresh && process.env.REDIS_URL) {
-    await enqueueMatViewRefresh().catch(() => {});
-  }
+  // Note: matview refresh queue not available — skip if REDIS_URL is set
 
   // Read from replica (falls back to primary if DATABASE_URL_REPLICA not set)
   const rows = await dbRead.$queryRaw<PortfolioSummaryRow[]>`
@@ -46,10 +43,7 @@ export async function GET(req: Request) {
   `;
 
   if (rows.length === 0) {
-    // View not yet populated — trigger a refresh and return empty state
-    if (process.env.REDIS_URL) {
-      await enqueueMatViewRefresh().catch(() => {});
-    }
+    // View not yet populated — return empty state
     return NextResponse.json({
       totalProjects:     0,
       activeProjects:    0,

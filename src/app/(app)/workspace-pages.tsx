@@ -128,20 +128,42 @@ export function TeamPage() {
 // ─────────────────────────────────────────────
 // INTEGRATIONS PAGE
 // ─────────────────────────────────────────────
+interface IntegrationStatus {
+  connected: boolean;
+  messagesToday: number;
+  lastMessage: string;
+  insights: number;
+}
+
 const INTEGRATIONS = [
   {
+    letter: "S", letterBg: "#4A154B", name: "Slack", connected: false,
+    desc: "Guardian alerts, milestone notifications and PMO approval requests. Ambient AI monitors #project-* channels.",
+    statusText: "Not connected",
+  },
+  {
+    letter: "G", letterBg: "#4285F4", name: "Gmail", connected: false,
+    desc: "Monitor project emails for decisions, scope changes and action items. Auto-extract PM intelligence.",
+    statusText: "Not connected",
+  },
+  {
+    letter: "Z", letterBg: "#2D8CFF", name: "Zoom", connected: false,
+    desc: "Auto-analyze meeting transcripts for decisions, risks and action items. Guardian AI attends every meeting.",
+    statusText: "Not connected",
+  },
+  {
+    letter: "T", letterBg: "#5B5EA6", name: "MS Teams", connected: false,
+    desc: "Weekly PMO reports and Guardian alerts in Teams channels. Project intelligence on autopilot.",
+    statusText: "Not connected",
+  },
+  {
     letter: "J", letterBg: "#0052CC", name: "Jira", connected: true,
-    desc: "Issues, sprints, epics synced bidirectionally. Jira epics → phases, sprints → sprints, issues → features. EVM and Guardian AI run automatically.",
+    desc: "Issues, sprints, epics synced bidirectionally. Jira epics → phases, sprints → sprints, issues → features.",
     statusText: "✓ Connected · 14 issues · Customer Portal",
   },
   {
     letter: "⌥", letterBg: "#181717", name: "GitHub", connected: false,
     desc: "Link PRs and commits to features. Task closes automatically on PR merge. Sprint completion triggers on deploy.",
-    statusText: "Not connected",
-  },
-  {
-    letter: "S", letterBg: "#4A154B", name: "Slack", connected: false,
-    desc: "Guardian alerts, milestone notifications and PMO approval requests in your channels.",
     statusText: "Not connected",
   },
   {
@@ -154,16 +176,45 @@ const INTEGRATIONS = [
     desc: "Export Guardian reports and closure documents to Notion workspace automatically.",
     statusText: "Coming soon",
   },
-  {
-    letter: "T", letterBg: C.surface3, name: "MS Teams", connected: false, soon: true,
-    desc: "Weekly PMO reports and Guardian alerts in Teams channels.",
-    statusText: "Coming soon",
-  },
 ];
 
-export function IntegrationsPage() {
+function IntegrationCard({ int }: { int: typeof INTEGRATIONS[0] }) {
   const { show: toast, ToastContainer } = useToast();
+  
+  return (
+    <div style={{
+      background: int.connected ? C.guardianLight : C.surface,
+      border: `1px solid ${int.connected ? C.guardianBorder : C.border}`,
+      borderRadius: 12, padding: 16, transition: ".15s",
+      opacity: int.soon ? .65 : 1,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: int.letterBg, color: int.letterBg === C.surface3 ? C.text2 : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{int.letter}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.3px" }}>{int.name}</div>
+        {int.soon && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: C.surface2, color: C.text2, border: `1px solid ${C.border}` }}>v2</span>}
+      </div>
+      <p style={{ fontSize: 11, color: C.text2, lineHeight: 1.5, marginBottom: 10 }}>{int.desc}</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: int.connected ? C.guardian : int.soon ? C.text3 : C.text3 }}>{int.statusText}</span>
+        {int.connected && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button style={BTN("sm")} onClick={() => toast("Opening config…","ok")}>Configure</button>
+            <button style={BTN("danger", { fontSize: 10, padding: "3px 8px" })} onClick={() => toast("Disconnected","warn")}>Disconnect</button>
+          </div>
+        )}
+        {!int.connected && !int.soon && (
+          <button style={BTN("primary", { fontSize: 10, padding: "4px 9px" })} onClick={() => toast(`Connecting ${int.name}…`,"ok")}>Connect →</button>
+        )}
+        {int.soon && (
+          <button style={{ ...BTN("sm"), opacity: .5 }} disabled>Notify me</button>
+        )}
+      </div>
+      <ToastContainer />
+    </div>
+  );
+}
 
+export function IntegrationsPage() {
   return (
     <div style={{ padding: "24px 28px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <Breadcrumb items={[{ label: "Settings", href: "/settings" }, { label: "Integrations" }]} />
@@ -173,39 +224,10 @@ export function IntegrationsPage() {
       </div>
 
       <div style={G2}>
-        {INTEGRATIONS.map(int => (
-          <div key={int.name} style={{
-            background: int.connected ? C.guardianLight : C.surface,
-            border: `1px solid ${int.connected ? C.guardianBorder : C.border}`,
-            borderRadius: 12, padding: 16, transition: ".15s",
-            opacity: int.soon ? .65 : 1,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: int.letterBg, color: int.letterBg === C.surface3 ? C.text2 : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{int.letter}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.3px" }}>{int.name}</div>
-              {int.soon && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: C.surface2, color: C.text2, border: `1px solid ${C.border}` }}>v2</span>}
-            </div>
-            <p style={{ fontSize: 11, color: C.text2, lineHeight: 1.5, marginBottom: 10 }}>{int.desc}</p>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: int.connected ? C.guardian : int.soon ? C.text3 : C.text3 }}>{int.statusText}</span>
-              {int.connected && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button style={BTN("sm")} onClick={() => toast("Opening config…","ok")}>Configure</button>
-                  <button style={BTN("danger", { fontSize: 10, padding: "3px 8px" })} onClick={() => toast("Disconnected","warn")}>Disconnect</button>
-                </div>
-              )}
-              {!int.connected && !int.soon && (
-                <button style={BTN("primary", { fontSize: 10, padding: "4px 9px" })} onClick={() => toast(`Connecting ${int.name}…`,"ok")}>Connect →</button>
-              )}
-              {int.soon && (
-                <button style={{ ...BTN("sm"), opacity: .5 }} disabled>Notify me</button>
-              )}
-            </div>
-          </div>
+        {INTEGRATIONS.map((int, i) => (
+          <IntegrationCard key={i} int={int} />
         ))}
       </div>
-
-      <ToastContainer />
     </div>
   );
 }

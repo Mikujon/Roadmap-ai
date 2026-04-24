@@ -291,15 +291,31 @@ export default function NewProjectPage() {
         }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        toast("Failed to create project: " + (err.error ?? "Unknown error"), "err");
+      const text = await res.text();
+      console.log("API response:", res.status, text);
+
+      if (!text || text.trim() === "") {
+        console.error("Empty response from API");
+        toast("Server returned empty response — check console", "err");
         return;
       }
 
-      const { project } = await res.json();
-      toast(`Project "${project.name}" created`, "ok");
-      setTimeout(() => router.push(`/projects/${project.id}`), 600);
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Invalid JSON:", text);
+        toast("Invalid response: " + text.slice(0, 100), "err");
+        return;
+      }
+
+      if (!res.ok) {
+        toast("Failed to create project: " + (data.error ?? "Unknown error"), "err");
+        return;
+      }
+
+      toast(`Project "${data.project.name}" created`, "ok");
+      setTimeout(() => router.push(`/projects/${data.project.id}`), 600);
     } catch (err) {
       toast("Network error — please try again", "err");
       console.error(err);

@@ -47,7 +47,7 @@ export async function PATCH(
   // Emit domain event — outbox poller dispatches Guardian job
   const statusChanged = body.status && body.status !== existing.status;
   if (statusChanged) {
-    const score    = scoreRisk({ probability: risk.probability, impact: risk.impact });
+    const score    = scoreRisk({ probability: risk.probability, impact: risk.impact, status: risk.status });
     const severity = classifyRiskScore(score.score);
     const eventType = body.status === "MITIGATED" ? "risk.mitigated"
                     : body.status === "CLOSED"    ? "risk.closed"
