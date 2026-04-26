@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   const inviterName = ctx.user?.name ?? ctx.user?.email ?? "Someone";
   const { subject, html } = await buildInviteEmail({ inviterName, orgName: ctx.org.name, role: body.role, link });
 
-  await resend.emails.send({ from: "RoadmapAI <noreply@roadmapai.com>", to: body.email, subject, html });
+  await resend.emails.send({ from: "RoadmapAI <onboarding@resend.dev>", to: body.email, subject, html });
 
   return NextResponse.json({ invitation: { id: invite.id, email: invite.email, role: invite.role, status: invite.status, expiresAt: invite.expiresAt.toISOString(), createdAt: invite.createdAt.toISOString() } });
 }

@@ -60,7 +60,7 @@ export async function POST(
     link,
   });
 
-  await resend.emails.send({ from: "RoadmapAI <noreply@roadmapai.com>", to: inv.email, subject, html });
+  await resend.emails.send({ from: "RoadmapAI <onboarding@resend.dev>", to: inv.email, subject, html });
 
   return NextResponse.json({ ok: true });
 }
