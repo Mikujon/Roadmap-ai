@@ -37,6 +37,7 @@ export default async function Page() {
         email:     i.email,
         role:      i.role,
         expiresAt: i.expiresAt.toISOString(),
+        createdAt: i.createdAt.toISOString(),
       }))}
     />
   );

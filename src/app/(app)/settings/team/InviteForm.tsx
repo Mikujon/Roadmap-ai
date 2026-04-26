@@ -1,7 +1,20 @@
 "use client";
 import { useState } from "react";
 
-export default function InviteForm() {
+interface InviteResult {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+interface Props {
+  onSuccess?: (inv: InviteResult) => void;
+  onError?:   (msg: string) => void;
+}
+
+export default function InviteForm({ onSuccess, onError }: Props) {
   const [email,   setEmail]   = useState("");
   const [role,    setRole]    = useState("VIEWER");
   const [loading, setLoading] = useState(false);
@@ -19,13 +32,19 @@ export default function InviteForm() {
         body:    JSON.stringify({ email, role }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed to invite");
-      else {
+      if (!res.ok) {
+        const msg = data.error ?? "Failed to send invitation";
+        setError(msg);
+        onError?.(msg);
+      } else {
         setSuccess(`Invitation sent to ${email}`);
         setEmail("");
+        onSuccess?.(data.invitation);
       }
     } catch {
-      setError("Something went wrong");
+      const msg = "Something went wrong";
+      setError(msg);
+      onError?.(msg);
     } finally {
       setLoading(false);
     }

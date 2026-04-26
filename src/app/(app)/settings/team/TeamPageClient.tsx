@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { C, CARD, CARD_H, CARD_T, CARD_S, G2, BTN, Tag, Row, MemberRow, useToast } from "@/components/ui/shared";
-import { ModalInvite, ModalEditRole } from "@/components/ui/project-modals";
+import { ModalEditRole } from "@/components/ui/project-modals";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import InviteForm from "./InviteForm";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
 
@@ -11,7 +12,7 @@ interface MemberData {
   email: string; role: Role; joinedAt: string; isMe: boolean;
 }
 interface InvitationData {
-  id: string; email: string; role: Role; expiresAt: string;
+  id: string; email: string; role: Role; expiresAt: string; createdAt?: string;
 }
 interface Props {
   orgName: string;
@@ -43,7 +44,6 @@ function fmtExpiry(iso: string) {
 }
 
 export default function TeamPageClient({ orgName, members, invitations }: Props) {
-  const [showInvite,    setShowInvite]    = useState(false);
   const [showEditRole,  setShowEditRole]  = useState(false);
   const [localMembers,  setLocalMembers]  = useState(members);
   const [localInvites,  setLocalInvites]  = useState(invitations);
@@ -57,14 +57,24 @@ export default function TeamPageClient({ orgName, members, invitations }: Props)
   };
 
   const cancelInvite = async (id: string) => {
-    await fetch(`/api/invitations/${id}`, { method: "DELETE" });
-    setLocalInvites(p => p.filter(i => i.id !== id));
-    toast("Invitation cancelled", "ok");
+    const res = await fetch(`/api/invitations/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setLocalInvites(p => p.filter(i => i.id !== id));
+      toast("Invitation cancelled", "ok");
+    } else {
+      toast("Failed to cancel invitation", "err");
+    }
   };
 
   const resendInvite = async (id: string) => {
-    await fetch(`/api/invitations/${id}/resend`, { method: "POST" });
-    toast("Invitation resent", "ok");
+    const res = await fetch(`/api/invitations/${id}`, { method: "POST" });
+    if (res.ok) toast("Invitation resent", "ok");
+    else toast("Failed to resend invitation", "err");
+  };
+
+  const handleInvited = (inv: { id: string; email: string; role: string; expiresAt: string; createdAt: string }) => {
+    setLocalInvites(p => [{ id: inv.id, email: inv.email, role: inv.role as Role, expiresAt: inv.expiresAt, createdAt: inv.createdAt }, ...p]);
+    toast("Invitation sent", "ok");
   };
 
   return (
@@ -75,7 +85,6 @@ export default function TeamPageClient({ orgName, members, invitations }: Props)
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: "-.4px", margin: 0, marginBottom: 4 }}>Team</h1>
           <p style={{ fontSize: 11, color: C.text2, margin: 0 }}>Members · roles · invitations · {orgName}</p>
         </div>
-        <button style={BTN("primary", { fontSize: 10, padding: "4px 9px" })} onClick={() => setShowInvite(true)}>+ Invite member</button>
       </div>
 
       <div style={G2}>
@@ -109,23 +118,27 @@ export default function TeamPageClient({ orgName, members, invitations }: Props)
           })}
         </div>
 
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <InviteForm onSuccess={handleInvited} />
+
           <div style={CARD}>
-            <div style={CARD_H}><span style={CARD_T}>Pending invitations</span></div>
+            <div style={CARD_H}>
+              <span style={CARD_T}>Pending invitations</span>
+              <span style={CARD_S}>{localInvites.length} pending</span>
+            </div>
             {localInvites.length === 0 ? (
               <div style={{ padding: "20px 14px", fontSize: 12, color: C.text3, textAlign: "center" }}>No pending invitations</div>
             ) : localInvites.map(inv => (
               <Row key={inv.id}>
-                <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: C.text }}>{inv.email}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.email}</div>
+                  <div style={{ fontSize: 10, color: C.text3 }}>expires {fmtExpiry(inv.expiresAt)}</div>
+                </div>
                 <Tag v={ROLE_TAG[inv.role].v}>{ROLE_TAG[inv.role].label}</Tag>
-                <div style={{ fontSize: 11, color: C.text2 }}>expires {fmtExpiry(inv.expiresAt)}</div>
-                <button style={{ ...BTN("sm"), marginLeft: 8 }} onClick={() => resendInvite(inv.id)}>Resend</button>
+                <button style={{ ...BTN("sm"), marginLeft: 4 }} onClick={() => resendInvite(inv.id)}>Resend</button>
                 <button style={BTN("danger", { fontSize: 10, padding: "3px 8px" })} onClick={() => cancelInvite(inv.id)}>Cancel</button>
               </Row>
             ))}
-            <div style={{ padding: "12px 14px", borderTop: `1px solid ${C.border}` }}>
-              <button style={BTN("primary", { fontSize: 10, padding: "4px 9px" })} onClick={() => setShowInvite(true)}>+ New invitation</button>
-            </div>
           </div>
 
           <div style={CARD}>
@@ -144,8 +157,7 @@ export default function TeamPageClient({ orgName, members, invitations }: Props)
         </div>
       </div>
 
-      <ModalInvite   open={showInvite}   onClose={() => { setShowInvite(false);   toast("Invitation sent", "ok");   }} />
-      <ModalEditRole open={showEditRole} onClose={() => { setShowEditRole(false); toast("Role updated", "ok");      }} />
+      <ModalEditRole open={showEditRole} onClose={() => { setShowEditRole(false); toast("Role updated", "ok"); }} />
       <ToastContainer />
     </div>
   );
