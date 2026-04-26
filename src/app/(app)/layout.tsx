@@ -9,6 +9,7 @@ import TopbarClient from "./TopbarClient";
 import { SidebarNavLinks } from "./SidebarNav";
 import { InactivityModal } from "@/components/ui/inactivity-modal";
 import PortfolioSubNav from "./PortfolioSubNav";
+import { AppProvider } from "@/contexts/AppContext";
 
 const HEALTH_DOT: Record<string, string> = {
   OFF_TRACK:   "#DC2626",
@@ -47,20 +48,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const role = ctx.role as Role;
 
-  const [rawProjects, unreadCount] = await Promise.all([
-    db.project.findMany({
-      where: { organisationId: ctx.org.id, status: { notIn: ["CLOSED","ARCHIVED"] } },
-      select: {
-        id: true, name: true, status: true, startDate: true, endDate: true, budgetTotal: true,
-        sprints: { select: { status: true, features: { select: { status: true } } } },
-        risks: { select: { status: true, probability: true, impact: true } },
-        assignments: { select: { estimatedHours: true, actualHours: true, resource: { select: { costPerHour: true, capacityHours: true } } } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    }),
-    db.alert.count({ where: { organisationId: ctx.org.id, read: false } }),
-  ]);
+  const rawProjects = await db.project.findMany({
+    where: { organisationId: ctx.org.id, status: { notIn: ["CLOSED","ARCHIVED"] } },
+    select: {
+      id: true, name: true, status: true, startDate: true, endDate: true, budgetTotal: true,
+      sprints: { select: { status: true, features: { select: { status: true } } } },
+      risks: { select: { status: true, probability: true, impact: true } },
+      assignments: { select: { estimatedHours: true, actualHours: true, resource: { select: { costPerHour: true, capacityHours: true } } } },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 10,
+  });
 
   const sidebarProjects = rawProjects.map(p => {
     const allF       = p.sprints.flatMap(s => s.features);
@@ -101,7 +99,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [{ href: "/cost", label: "Financials", icon: IC.financials }]
       : []),
     ...(preferredView !== "STK" && preferredView !== "DEV"
-      ? [{ href: "/alerts", label: "Alerts", icon: IC.alerts, badge: unreadCount }]
+      ? [{ href: "/alerts", label: "Alerts", icon: IC.alerts }]
       : []),
   ];
   const mainNavItems = mainNavItemsBase;
@@ -128,6 +126,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const workspaceNavItems = workspaceNavItemsBase;
 
   return (
+    <AppProvider initialRole={preferredView}>
     <>
       <style>{`
         *, *::before, *::after { box-sizing: border-box }
@@ -155,7 +154,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="topbar">
           <TopbarClient
             orgName={ctx.org.name}
-            unreadCount={unreadCount}
             initials={initials}
             preferredView={(ctx.user.preferredView ?? "PMO") as "PMO"|"CEO"|"STK"|"DEV"}
           />
@@ -201,5 +199,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <InactivityModal />
     </>
+    </AppProvider>
   );
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { GlobalSearch } from "@/components/ui/global-search";
 import { KeyboardShortcutsModal } from "@/components/ui/keyboard-shortcuts";
 import { AIChatPanel } from "@/components/ui/AIChatPanel";
+import { useAlerts, useApp } from "@/contexts/AppContext";
 
 // ── Notification drawer ───────────────────────────────────────────────────────
 interface AlertItem {
@@ -31,28 +32,17 @@ function timeAgo(iso: string) {
 function NotificationDrawer({
   open,
   onClose,
-  onCountChange,
 }: {
   open: boolean;
   onClose: () => void;
-  onCountChange: (n: number) => void;
 }) {
-  const [alerts, setAlerts]     = useState<AlertItem[]>([]);
-  const [loading, setLoading]   = useState(false);
+  const { alerts: rawAlerts, markAlertRead, markAllRead } = useAlerts();
+  const alerts = rawAlerts as AlertItem[];
   const router = useRouter();
 
-  // Fetch on open
+  // Mark all read when drawer opens
   useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    fetch("/api/alerts?limit=20")
-      .then(r => r.json())
-      .then((data: AlertItem[]) => {
-        setAlerts(Array.isArray(data) ? data : []);
-        onCountChange(data.filter((a: AlertItem) => !a.read).length);
-      })
-      .catch(() => setAlerts([]))
-      .finally(() => setLoading(false));
+    if (open && alerts.some(a => !a.read)) markAllRead();
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ESC key
@@ -63,20 +53,8 @@ function NotificationDrawer({
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const markAllRead = async () => {
-    await fetch("/api/alerts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markAllRead: true }) });
-    setAlerts(a => a.map(x => ({ ...x, read: true })));
-    onCountChange(0);
-  };
-
-  const markRead = async (id: string) => {
-    await fetch("/api/alerts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alertId: id }) });
-    setAlerts(a => a.map(x => x.id === id ? { ...x, read: true } : x));
-    onCountChange(alerts.filter(a => !a.read && a.id !== id).length);
-  };
-
   const handleClick = (alert: AlertItem) => {
-    markRead(alert.id);
+    markAlertRead(alert.id);
     if (alert.projectId) router.push(`/projects/${alert.projectId}`);
     else router.push("/alerts");
     onClose();
@@ -129,9 +107,7 @@ function NotificationDrawer({
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {loading ? (
-            <div style={{ padding: 32, textAlign: "center", fontSize: 12, color: "#9E9C93" }}>Loading…</div>
-          ) : alerts.length === 0 ? (
+          {alerts.length === 0 ? (
             <div style={{ padding: 32, textAlign: "center", fontSize: 12, color: "#9E9C93" }}>No notifications</div>
           ) : alerts.map(alert => (
             <div
@@ -198,14 +174,12 @@ const ROLES: { id: Role; label: string }[] = [
 
 interface Props {
   orgName:       string;
-  unreadCount:   number;
   initials:      string;
   preferredView: Role;
 }
 
-export default function TopbarClient({ orgName, unreadCount, initials, preferredView }: Props) {
+export default function TopbarClient({ orgName, initials, preferredView }: Props) {
   const [role, setRole]               = useState<Role>(preferredView);
-  const [alertCount, setAlertCount]   = useState(unreadCount);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen]   = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -214,6 +188,9 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
   const router   = useRouter();
   const pathname = usePathname();
   const { signOut } = useClerk();
+
+  const { unreadCount: alertCount } = useAlerts();
+  const { lastUpdated, refresh: refreshAll } = useApp();
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
@@ -342,6 +319,29 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
               </button>
             );
           })}
+        </div>
+
+        {/* Last updated + refresh */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {lastUpdated && (
+            <span style={{ fontSize: 10, color: "#CCC9BF", whiteSpace: "nowrap" }}>
+              {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          <button
+            onClick={refreshAll}
+            title="Refresh data"
+            style={{
+              width: 24, height: 24, border: "none", background: "none",
+              cursor: "pointer", borderRadius: 6, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              color: "#CCC9BF", fontSize: 13, transition: "color .1s, background .1s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#5C5A52"; (e.currentTarget as HTMLButtonElement).style.background = "#F0EEE8"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#CCC9BF"; (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+          >
+            ↺
+          </button>
         </div>
 
         {/* Shortcuts help */}
@@ -475,7 +475,6 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
       <NotificationDrawer
         open={drawerOpen}
         onClose={closeDrawer}
-        onCountChange={setAlertCount}
       />
 
       {/* Guardian AI Chat Panel */}
