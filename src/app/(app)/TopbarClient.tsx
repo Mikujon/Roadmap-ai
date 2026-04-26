@@ -5,6 +5,7 @@ import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/ui/global-search";
 import { KeyboardShortcutsModal } from "@/components/ui/keyboard-shortcuts";
+import { AIChatPanel } from "@/components/ui/AIChatPanel";
 
 // ── Notification drawer ───────────────────────────────────────────────────────
 interface AlertItem {
@@ -209,6 +210,7 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
   const [searchOpen, setSearchOpen]   = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen]   = useState(false);
+  const [aiChatOpen, setAiChatOpen]   = useState(false);
   const router   = useRouter();
   const pathname = usePathname();
   const { signOut } = useClerk();
@@ -359,6 +361,24 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
           ?
         </button>
 
+        {/* AI Chat */}
+        <button
+          onClick={() => setAiChatOpen(o => !o)}
+          title="Guardian AI Assistant"
+          style={{
+            width: 32, height: 32, border: "1px solid #E5E2D9",
+            borderRadius: 8, background: aiChatOpen ? "#006D6B" : "none",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: aiChatOpen ? "#fff" : "#9E9C93", fontSize: 15, fontWeight: 700,
+            transition: "background .1s, color .1s",
+          }}
+          onMouseEnter={e => { if (!aiChatOpen) { (e.currentTarget as HTMLButtonElement).style.background = "#F0EEE8"; (e.currentTarget as HTMLButtonElement).style.color = "#5C5A52"; } }}
+          onMouseLeave={e => { if (!aiChatOpen) { (e.currentTarget as HTMLButtonElement).style.background = "none";    (e.currentTarget as HTMLButtonElement).style.color = "#9E9C93"; } }}
+        >
+          ✦
+        </button>
+
         {/* Bell */}
         <button
           onClick={() => setDrawerOpen(o => !o)}
@@ -456,6 +476,12 @@ export default function TopbarClient({ orgName, unreadCount, initials, preferred
         open={drawerOpen}
         onClose={closeDrawer}
         onCountChange={setAlertCount}
+      />
+
+      {/* Guardian AI Chat Panel */}
+      <AIChatPanel
+        open={aiChatOpen}
+        onClose={() => setAiChatOpen(false)}
       />
     </>
   );
