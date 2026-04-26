@@ -86,6 +86,23 @@ const FEAT_TAG: Record<string, { v: "r"|"b"|"n"|"g"; label: string }> = {
   DONE:        { v: "g", label: "Done"        },
 };
 
+function getPhaseRange(
+  index: number,
+  total: number,
+  projectStart: Date,
+  projectEnd: Date
+): { start: Date; end: Date; progress: number } {
+  const totalMs = projectEnd.getTime() - projectStart.getTime();
+  const phaseMs = totalMs / total;
+  const start = new Date(projectStart.getTime() + index * phaseMs);
+  const end = new Date(projectStart.getTime() + (index + 1) * phaseMs);
+  const now = Date.now();
+  const progress = now < start.getTime() ? 0
+    : now > end.getTime() ? 100
+    : Math.round((now - start.getTime()) / phaseMs * 100);
+  return { start, end, progress };
+}
+
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
@@ -312,23 +329,20 @@ export default function ProjectOverviewClient({ projectId, project, metrics, pha
                 <span style={CARD_S}>{phases.length} phases</span>
               </div>
               <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
-                {phases.map(ph => {
-                  const color = PHASE_COLOR[ph.status] ?? C.text3;
-                  const isDone = ph.status === "DONE";
+                {phases.map((ph, index) => {
+                  const { start, end, progress } = getPhaseRange(index, phases.length, new Date(project.startDate), new Date(project.endDate));
+                  const barColor = progress === 100 ? "#059669" : progress > 0 ? "#2563EB" : "#9CA3AF";
+                  const dateRange = `${start.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}–${end.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
                   return (
                     <div key={ph.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ fontSize: 11, color: C.text2, width: 110, flexShrink: 0 }}>{ph.name}</div>
                       <div style={{ flex: 1, height: 18, background: C.surface2, borderRadius: 4, overflow: "hidden" }}>
-                        {ph.pct > 0 ? (
-                          <div style={{ width: `${ph.pct}%`, height: "100%", background: color, display: "flex", alignItems: "center", paddingLeft: 7, fontSize: 9, color: "#fff", fontWeight: 700, borderRadius: 4 }}>
-                            {isDone ? "Done" : `${ph.pct}%`}
-                          </div>
-                        ) : null}
+                        <div style={{ width: `${Math.max(progress, 2)}%`, height: "100%", background: barColor, display: "flex", alignItems: "center", paddingLeft: 7, fontSize: 9, color: "#fff", fontWeight: 700, borderRadius: 4, transition: "width 0.4s" }}>
+                          {progress > 8 ? (progress === 100 ? "Done" : `${progress}%`) : ""}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: C.text3, width: 80, textAlign: "right", flexShrink: 0 }}>
-                        {ph.startDate ? `${new Date(ph.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : ""}
-                        {ph.startDate && ph.endDate ? "–" : ""}
-                        {ph.endDate ? `${new Date(ph.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : ""}
+                      <div style={{ fontSize: 10, color: C.text3, width: 100, textAlign: "right", flexShrink: 0 }}>
+                        {dateRange} · {progress}%
                       </div>
                     </div>
                   );
