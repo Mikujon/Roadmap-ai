@@ -46,11 +46,10 @@ const IC = {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { userId, orgId } = await auth();
   if (!userId) redirect("/sign-in");
-  if (!orgId)  redirect("/onboarding");
+  if (!orgId)  redirect("/setup");
 
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
-  if (!ctx.org.onboardingCompleted) redirect("/onboarding");
 
   const orgConfig = await db.organisation.findUnique({
     where: { id: ctx.org.id },
