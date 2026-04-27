@@ -8,6 +8,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/share/(.*)",
   "/api/webhooks/(.*)",
+  "/api/mcp/(.*)",
+  "/api/v1/(.*)",
 ]);
 
 const isBillingRoute = createRouteMatcher([

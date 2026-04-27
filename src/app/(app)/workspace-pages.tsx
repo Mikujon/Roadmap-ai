@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { C, CARD, CARD_H, CARD_T, CARD_S, CARD_BODY, G2, G3, BTN, Tag, Dot, Row, MemberRow, useToast, FG, FL, FI } from "@/components/ui/shared";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -214,6 +214,207 @@ function IntegrationCard({ int }: { int: typeof INTEGRATIONS[0] }) {
   );
 }
 
+interface IngestionLogEntry {
+  id: string;
+  platform: string;
+  type: string;
+  sender: string;
+  summary: string | null;
+  confidence: number | null;
+  applied: boolean;
+  createdAt: string;
+  projectId: string | null;
+  projectIdRelation: { name: string } | null;
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  jira: "#0052CC", gmail: "#EA4335", slack: "#4A154B", zoom: "#2D8CFF",
+  teams: "#5B5EA6", linear: "#5E6AD2", github: "#181717", custom: C.guardian,
+};
+
+function ApiKeySection() {
+  const { show: toast, ToastContainer } = useToast();
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [masked, setMasked] = useState<string | null>(null);
+  const [showFull, setShowFull] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://your-domain.com");
+
+  useEffect(() => {
+    fetch("/api/settings/api-key")
+      .then(r => r.json())
+      .then(d => { setApiKey(d.apiKey); setMasked(d.masked); })
+      .catch(() => {});
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    if (!apiKey) return;
+    navigator.clipboard.writeText(apiKey).then(() => toast("API key copied", "ok"));
+  }, [apiKey, toast]);
+
+  const handleRegenerate = useCallback(async () => {
+    if (!confirmRegen) { setConfirmRegen(true); return; }
+    setLoading(true);
+    try {
+      const r = await fetch("/api/settings/api-key", { method: "POST" });
+      const d = await r.json();
+      setApiKey(d.apiKey);
+      setMasked(d.masked);
+      setShowFull(true);
+      setConfirmRegen(false);
+      toast("New API key generated — copy it now", "ok");
+    } catch {
+      toast("Failed to regenerate", "warn");
+    } finally {
+      setLoading(false);
+    }
+  }, [confirmRegen, toast]);
+
+  const curlExample = `curl -X POST ${appUrl}/api/mcp/ingest \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "source": "custom",
+    "orgId": "YOUR_ORG_ID",
+    "events": [{
+      "type": "message",
+      "content": "Sprint 3 delayed by 5 days due to auth dependency",
+      "sender": "john@company.com",
+      "timestamp": "${new Date().toISOString()}"
+    }]
+  }'`;
+
+  return (
+    <div style={{ ...CARD, marginBottom: 20 }}>
+      <div style={CARD_H}>
+        <span style={CARD_T}>API & MCP</span>
+        <span style={CARD_S}>Universal ingestion endpoint · any agent can push updates</span>
+      </div>
+
+      {/* API Key row */}
+      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>API Key</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <code style={{
+            flex: 1, fontFamily: "monospace", fontSize: 12,
+            background: C.surface2, border: `1px solid ${C.border}`,
+            borderRadius: 6, padding: "6px 10px", color: C.text,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {apiKey === null ? "Loading…" : (showFull && apiKey ? apiKey : (masked ?? "No key — click Regenerate"))}
+          </code>
+          {apiKey && (
+            <button style={BTN("sm")} onClick={() => setShowFull(v => !v)}>
+              {showFull ? "Hide" : "Show"}
+            </button>
+          )}
+          <button style={BTN("sm")} onClick={handleCopy} disabled={!apiKey}>Copy</button>
+          <button
+            style={{ ...BTN(confirmRegen ? "danger" : "sm", { fontSize: 10, padding: "3px 8px" }), minWidth: 90 }}
+            onClick={handleRegenerate}
+            disabled={loading}
+          >
+            {loading ? "Generating…" : confirmRegen ? "Confirm regen?" : "Regenerate"}
+          </button>
+          {confirmRegen && (
+            <button style={BTN("sm")} onClick={() => setConfirmRegen(false)}>Cancel</button>
+          )}
+        </div>
+      </div>
+
+      {/* MCP server URL */}
+      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>MCP Server URL</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <code style={{
+            flex: 1, fontFamily: "monospace", fontSize: 12,
+            background: C.surface2, border: `1px solid ${C.border}`,
+            borderRadius: 6, padding: "6px 10px", color: C.guardian,
+          }}>
+            {appUrl}/api/mcp/ingest
+          </code>
+          <button style={BTN("sm")} onClick={() => {
+            navigator.clipboard.writeText(`${appUrl}/api/mcp/ingest`);
+            toast("URL copied", "ok");
+          }}>Copy</button>
+        </div>
+      </div>
+
+      {/* curl example */}
+      <div style={{ padding: "14px 16px" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".05em" }}>Example request</div>
+        <pre style={{
+          fontFamily: "monospace", fontSize: 10, lineHeight: 1.6,
+          background: "#0d1117", color: "#c9d1d9",
+          borderRadius: 8, padding: 14, margin: 0,
+          overflow: "auto", whiteSpace: "pre",
+        }}>{curlExample}</pre>
+      </div>
+
+      <ToastContainer />
+    </div>
+  );
+}
+
+function IngestionLog() {
+  const [entries, setEntries] = useState<IngestionLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/settings/ingestion-log")
+      .then(r => r.json())
+      .then(d => setEntries(d.messages ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{ ...CARD, marginBottom: 20 }}>
+      <div style={CARD_H}>
+        <span style={CARD_T}>Recent ingestions</span>
+        <span style={CARD_S}>Last 20 messages processed by MCP</span>
+      </div>
+
+      {loading && (
+        <div style={{ padding: "16px", fontSize: 12, color: C.text3 }}>Loading…</div>
+      )}
+
+      {!loading && entries.length === 0 && (
+        <div style={{ padding: "20px 16px", fontSize: 12, color: C.text3, textAlign: "center" }}>
+          No ingestions yet. POST to /api/mcp/ingest to get started.
+        </div>
+      )}
+
+      {entries.map(e => (
+        <Row key={e.id}>
+          <div style={{
+            fontSize: 9, fontWeight: 800, letterSpacing: ".05em",
+            padding: "2px 7px", borderRadius: 4,
+            background: SOURCE_COLORS[e.platform] ?? C.surface2,
+            color: "#fff", flexShrink: 0, textTransform: "uppercase",
+          }}>
+            {e.platform}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {e.summary ?? e.type}
+            </div>
+            <div style={{ fontSize: 10, color: C.text3 }}>
+              {e.sender}{e.projectIdRelation ? ` · ${e.projectIdRelation.name}` : ""}
+              {e.confidence != null ? ` · ${Math.round(e.confidence * 100)}% confidence` : ""}
+            </div>
+          </div>
+          <Tag v={e.applied ? "g" : "n"}>{e.applied ? "Applied" : "Skipped"}</Tag>
+          <div style={{ fontSize: 10, color: C.text3, flexShrink: 0 }}>
+            {new Date(e.createdAt).toLocaleString()}
+          </div>
+        </Row>
+      ))}
+    </div>
+  );
+}
+
 export function IntegrationsPage() {
   return (
     <div style={{ padding: "24px 28px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -222,6 +423,9 @@ export function IntegrationsPage() {
         <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: "-.4px", margin: 0, marginBottom: 4 }}>Integrations</h1>
         <p style={{ fontSize: 11, color: C.text2, margin: 0 }}>Connect your tools · bidirectional synchronization</p>
       </div>
+
+      <ApiKeySection />
+      <IngestionLog />
 
       <div style={G2}>
         {INTEGRATIONS.map((int, i) => (

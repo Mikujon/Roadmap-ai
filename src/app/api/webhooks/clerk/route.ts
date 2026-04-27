@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { nanoid } from "nanoid";
 
 export async function POST(req: Request) {
   const payload = await req.text();
@@ -35,10 +36,11 @@ export async function POST(req: Request) {
   }
 
   if (type === "organization.created") {
+    const apiKey = `rmai_${nanoid(32)}`;
     await db.organisation.upsert({
       where: { clerkOrgId: data.id },
       update: { name: data.name, slug: data.slug ?? data.id },
-      create: { clerkOrgId: data.id, name: data.name, slug: data.slug ?? data.id },
+      create: { clerkOrgId: data.id, name: data.name, slug: data.slug ?? data.id, apiKey },
     });
   }
 

@@ -27,6 +27,8 @@ model Organisation {
   trialEndsAt          DateTime?
   currentPeriodEnd     DateTime?
 
+  apiKey          String?            @unique
+
   slackTeamId     String?
   slackBotToken   String?
   gmailEmail      String?
