@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { triggerAgents } from "@/lib/agent-triggers";
+import { can } from "@/lib/permissions";
 
 export async function POST(req: Request) {
   try {
     console.log("POST /api/projects called");
     const ctx = await getAuthContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!can.createProject(ctx.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json() as {
       name: string;

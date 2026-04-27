@@ -16,7 +16,7 @@ interface Props {
 
 export default function InviteForm({ onSuccess, onError }: Props) {
   const [email,   setEmail]   = useState("");
-  const [role,    setRole]    = useState("VIEWER");
+  const [role,    setRole]    = useState("PMO");
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
@@ -75,9 +75,11 @@ export default function InviteForm({ onSuccess, onError }: Props) {
             outline: "none", fontFamily: "inherit", cursor: "pointer",
           }}
         >
-          <option value="VIEWER">Viewer</option>
-          <option value="MANAGER">Manager</option>
-          <option value="ADMIN">Admin</option>
+          <option value="PMO">PMO — Project Manager</option>
+          <option value="CEO">CEO — Executive view</option>
+          <option value="STAKEHOLDER">Stakeholder — Client/Sponsor</option>
+          <option value="DEV">Dev — Developer/Designer</option>
+          <option value="ADMIN">Admin — Full access + billing</option>
         </select>
         <button
           onClick={invite}

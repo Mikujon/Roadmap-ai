@@ -156,30 +156,23 @@ function NotificationDrawer({
   );
 }
 
-type Role = "PMO" | "CEO" | "STK" | "DEV";
+type MemberRole = "PMO" | "CEO" | "STAKEHOLDER" | "DEV" | "ADMIN";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard"  },
-  { href: "/portfolio",  label: "Portfolio"  },
-  { href: "/cost",       label: "Financials" },
-  { href: "/archive",    label: "Archive"    },
-];
-
-const ROLES: { id: Role; label: string }[] = [
-  { id: "PMO", label: "PMO" },
-  { id: "CEO", label: "CEO" },
-  { id: "STK", label: "Stakeholder" },
-  { id: "DEV", label: "Dev" },
-];
+const ROLE_META: Record<MemberRole, { label: string; color: string; bg: string }> = {
+  PMO:         { label: "PMO",         color: "#fff",    bg: "#18170F" },
+  CEO:         { label: "CEO",         color: "#fff",    bg: "#7C3AED" },
+  STAKEHOLDER: { label: "Stakeholder", color: "#fff",    bg: "#0D9488" },
+  DEV:         { label: "Dev",         color: "#fff",    bg: "#2563EB" },
+  ADMIN:       { label: "Admin",       color: "#fff",    bg: "#DC2626" },
+};
 
 interface Props {
-  orgName:       string;
-  initials:      string;
-  preferredView: Role;
+  orgName:  string;
+  initials: string;
+  role:     MemberRole;
 }
 
-export default function TopbarClient({ orgName, initials, preferredView }: Props) {
-  const [role, setRole]               = useState<Role>(preferredView);
+export default function TopbarClient({ orgName, initials, role }: Props) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen]   = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -213,17 +206,6 @@ export default function TopbarClient({ orgName, initials, preferredView }: Props
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
-
-  const switchRole = async (r: Role) => {
-    setRole(r);
-    await fetch("/api/users/me", {
-      method:  "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ preferredView: r }),
-    });
-    window.dispatchEvent(new CustomEvent("rolechange", { detail: r }));
-    router.refresh();
-  };
 
   return (
     <>
@@ -294,32 +276,20 @@ export default function TopbarClient({ orgName, initials, preferredView }: Props
           <kbd style={{ fontSize: 10, color: "#CCC9BF", background: "#F0EEE8", border: "1px solid #E5E2D9", borderRadius: 4, padding: "1px 5px" }}>⌘K</kbd>
         </button>
 
-        {/* Role strip */}
-        <div style={{
-          display: "flex", background: "#F4F2EC",
-          border: "1px solid #E5E2D9", borderRadius: 8, padding: 3, gap: 2,
-        }}>
-          {ROLES.map(r => {
-            const activeBg = r.id === "PMO" ? "#18170F" : r.id === "CEO" ? "#7C3AED" : r.id === "STK" ? "#0D9488" : "#2563EB";
-            const isOn = role === r.id;
-            return (
-              <button
-                key={r.id}
-                onClick={() => switchRole(r.id)}
-                style={{
-                  padding: "4px 10px", borderRadius: 6, border: "none",
-                  cursor: "pointer", fontSize: 11, fontWeight: 600,
-                  fontFamily: "inherit", letterSpacing: "-.1px",
-                  color:      isOn ? "#fff"    : "#5C5A52",
-                  background: isOn ? activeBg  : "transparent",
-                  transition: "background .15s, color .15s",
-                }}
-              >
-                {r.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Role badge */}
+        {(() => {
+          const meta = ROLE_META[role] ?? ROLE_META.PMO;
+          return (
+            <div style={{
+              padding: "4px 12px", borderRadius: 6,
+              background: meta.bg, color: meta.color,
+              fontSize: 11, fontWeight: 700,
+              letterSpacing: "-.1px",
+            }}>
+              {meta.label}
+            </div>
+          );
+        })()}
 
         {/* Last updated + refresh */}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

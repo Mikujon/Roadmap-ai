@@ -9,19 +9,41 @@ export default async function PortfolioPage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
 
-  const projects = await db.project.findMany({
-    where: { organisationId: ctx.org.id, status: { notIn: ["CLOSED", "ARCHIVED"] } },
-    include: {
-      sprints: { include: { features: true } },
-      phases: { orderBy: { order: "asc" } },
-      assignments: { include: { resource: true } },
-      risks: true,
-      requestedBy: { select: { name: true, email: true } },
-      departments: { include: { department: true } },
-      dependsOn: { include: { dependsOn: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const role = ctx.role;
+  const INCLUDE = {
+    sprints: { include: { features: true } },
+    phases: { orderBy: { order: "asc" as const } },
+    assignments: { include: { resource: true } },
+    risks: true,
+    requestedBy: { select: { name: true, email: true } },
+    departments: { include: { department: true } },
+    dependsOn: { include: { dependsOn: true } },
+  };
+
+  const baseWhere = { organisationId: ctx.org.id, status: { notIn: ["CLOSED", "ARCHIVED"] as const } };
+
+  const projects = await (
+    role === "STAKEHOLDER"
+      ? db.project.findMany({
+          where: { ...baseWhere, OR: [
+            { requestedById: ctx.user.id },
+            { assignments: { some: { resource: { name: ctx.user.name ?? "" } } } },
+          ]},
+          include: INCLUDE,
+          orderBy: { updatedAt: "desc" },
+        })
+      : role === "DEV"
+      ? db.project.findMany({
+          where: { ...baseWhere, sprints: { some: { features: { some: { assignedToId: ctx.user.id } } } } },
+          include: INCLUDE,
+          orderBy: { updatedAt: "desc" },
+        })
+      : db.project.findMany({
+          where: baseWhere,
+          include: INCLUDE,
+          orderBy: { updatedAt: "desc" },
+        })
+  );
 
   const metrics = projects.map(p => getProjectMetrics(p as any));
 

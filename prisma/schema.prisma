@@ -82,7 +82,7 @@ model User {
 
 model Member {
   id       String   @id @default(cuid())
-  role     Role     @default(VIEWER)
+  role     Role     @default(PMO)
   joinedAt DateTime @default(now())
 
   userId String
@@ -96,15 +96,17 @@ model Member {
 }
 
 enum Role {
-  ADMIN
-  MANAGER
-  VIEWER
+  PMO          // Full operational access - Project Manager
+  CEO          // Portfolio + financial view - Executive
+  STAKEHOLDER  // Their projects only - Client/Sponsor
+  DEV          // Their tasks only - Developer/Designer
+  ADMIN        // Super admin - org owner, billing
 }
 
 model Invitation {
   id        String       @id @default(cuid())
   email     String
-  role      Role         @default(VIEWER)
+  role      Role         @default(PMO)
   token     String       @unique @default(cuid())
   status    InviteStatus @default(PENDING)
   expiresAt DateTime

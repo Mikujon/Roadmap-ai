@@ -50,11 +50,11 @@ export async function POST(req: Request) {
     if (user && org) {
       await db.member.upsert({
         where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
-        update: { role: data.role === "org:admin" ? "ADMIN" : "VIEWER" },
+        update: { role: data.role === "org:admin" ? "ADMIN" : "PMO" },
         create: {
           userId: user.id,
           organisationId: org.id,
-          role: data.role === "org:admin" ? "ADMIN" : "VIEWER",
+          role: data.role === "org:admin" ? "ADMIN" : "PMO",
         },
       });
     }

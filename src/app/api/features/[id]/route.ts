@@ -5,6 +5,7 @@ import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
 import { triggerGuardian } from "@/lib/guardian-trigger";
 import { emit } from "@roadmap/events";
+import { can } from "@/lib/permissions";
 
 export async function PATCH(
   req: Request,
@@ -13,6 +14,7 @@ export async function PATCH(
   const { id } = await params;
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!can.updateTaskStatus(ctx.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // ── Org isolation check ──────────────────────────────────────────────────
   const existing = await db.feature.findFirst({

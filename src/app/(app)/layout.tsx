@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getAuthContext } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, sidebarItems } from "@/lib/permissions";
 import { Role } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { calculateHealth } from "@/lib/health";
@@ -68,6 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
 
   const role = ctx.role as Role;
+  const allowed = new Set(sidebarItems[role] ?? sidebarItems.PMO);
 
   const rawProjects = await db.project.findMany({
     where: { organisationId: ctx.org.id, status: { notIn: ["CLOSED","ARCHIVED"] } },
@@ -109,45 +110,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initials = (ctx.user.name ?? ctx.user.email ?? "U")
     .split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
-  const preferredView = (ctx.user.preferredView ?? "PMO") as "PMO" | "CEO" | "STK" | "DEV";
-
-  // Role-aware main nav
-  const mainNavItemsBase = [
-    { href: "/dashboard", label: "Dashboard", icon: IC.dashboard },
-    ...(preferredView !== "DEV" ? [{ href: "/portfolio", label: "Portfolio", icon: IC.portfolio }] : []),
-    ...(preferredView === "DEV" ? [{ href: "/my-tasks", label: "My Tasks", icon: IC.roadmap }] : []),
-    ...(preferredView !== "STK" && preferredView !== "DEV"
-      ? [{ href: "/cost", label: "Financials", icon: IC.financials }]
-      : []),
-    ...(preferredView !== "STK" && preferredView !== "DEV"
-      ? [{ href: "/alerts", label: "Alerts", icon: IC.alerts }]
-      : []),
+  // All possible nav items — filtered by sidebarItems[role]
+  const ALL_MAIN: { key: string; href: string; label: string; icon: React.ReactNode }[] = [
+    { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: IC.dashboard },
+    { key: "portfolio",  href: "/portfolio",  label: "Portfolio",  icon: IC.portfolio  },
+    { key: "my-tasks",   href: "/my-tasks",   label: "My Tasks",   icon: IC.roadmap    },
+    { key: "cost",       href: "/cost",       label: "Financials", icon: IC.financials },
+    { key: "alerts",     href: "/alerts",     label: "Alerts",     icon: IC.alerts     },
   ];
-  const mainNavItems = mainNavItemsBase;
-
-  // Role-aware workspace nav
-  const workspaceNavItemsBase = [
-    { href: "/archive", label: "Archive", icon: IC.archive },
-    ...(preferredView === "PMO"
-      ? [
-          { href: "/settings/team",         label: "Team",         icon: IC.team         },
-          { href: "/settings/integrations", label: "Integrations", icon: IC.integrations },
-          { href: "/settings/billing",      label: "Billing",      icon: IC.billing      },
-          { href: "/roadmap",               label: "Roadmap",      icon: IC.roadmap      },
-          { href: "/settings",              label: "Settings",     icon: IC.settings     },
-        ]
-      : []),
-    ...(preferredView === "CEO"
-      ? [{ href: "/settings", label: "Settings", icon: IC.settings }]
-      : []),
-    ...(preferredView === "DEV"
-      ? [{ href: "/settings", label: "Settings", icon: IC.settings }]
-      : []),
+  const ALL_WORKSPACE: { key: string; href: string; label: string; icon: React.ReactNode }[] = [
+    { key: "archive",               href: "/archive",               label: "Archive",      icon: IC.archive      },
+    { key: "roadmap",               href: "/roadmap",               label: "Roadmap",      icon: IC.roadmap      },
+    { key: "settings/team",         href: "/settings/team",         label: "Team",         icon: IC.team         },
+    { key: "settings/integrations", href: "/settings/integrations", label: "Integrations", icon: IC.integrations },
+    { key: "settings/billing",      href: "/settings/billing",      label: "Billing",      icon: IC.billing      },
+    { key: "settings/departments",  href: "/settings/departments",  label: "Departments",  icon: IC.team         },
+    { key: "settings",              href: "/settings",              label: "Settings",     icon: IC.settings     },
   ];
-  const workspaceNavItems = workspaceNavItemsBase;
+
+  const mainNavItems      = ALL_MAIN.filter(i => allowed.has(i.key));
+  const workspaceNavItems = ALL_WORKSPACE.filter(i => allowed.has(i.key));
 
   return (
-    <AppProvider initialRole={preferredView} initialUIConfig={initialUIConfig}>
+    <AppProvider initialRole={role} initialUIConfig={initialUIConfig}>
     <>
       <style>{`
         :root {
@@ -183,7 +168,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <TopbarClient
             orgName={ctx.org.name}
             initials={initials}
-            preferredView={(ctx.user.preferredView ?? "PMO") as "PMO"|"CEO"|"STK"|"DEV"}
+            role={role}
           />
         </header>
 
@@ -192,7 +177,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div className="sb-inner">
               <div className="sb-sect">Overview</div>
               <SidebarNavLinks items={mainNavItems} />
-              {(preferredView === "PMO" || preferredView === "CEO") && (
+              {can.viewAllProjects(role) && (
                 <PortfolioSubNav />
               )}
 
