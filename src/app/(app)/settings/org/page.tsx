@@ -25,6 +25,13 @@ export default async function OrgSettingsPage() {
         brandColor={ctx.org.brandColor}
         documentHeader={ctx.org.documentHeader}
         documentFooter={ctx.org.documentFooter}
+        uiTheme={ctx.org.uiTheme}
+        uiPrimaryColor={ctx.org.uiPrimaryColor}
+        uiLanguage={ctx.org.uiLanguage}
+        uiCurrency={ctx.org.uiCurrency}
+        uiDateFormat={ctx.org.uiDateFormat}
+        uiDefaultRole={ctx.org.uiDefaultRole}
+        uiCompactMode={ctx.org.uiCompactMode}
       />
     </div>
   );

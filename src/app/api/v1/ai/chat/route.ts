@@ -106,6 +106,22 @@ const TOOLS: Anthropic.Tool[] = [
       },
     },
   },
+  {
+    name: "update_ui_config",
+    description: "Update the user interface configuration — colors, theme, compact mode, language",
+    input_schema: {
+      type: "object",
+      properties: {
+        primaryColor: { type: "string", description: "Hex color e.g. #006D6B" },
+        theme:        { type: "string", enum: ["light", "auto"] },
+        compactMode:  { type: "boolean" },
+        language:     { type: "string", enum: ["en", "it", "es", "fr"] },
+        currency:     { type: "string", enum: ["EUR", "USD", "GBP"] },
+        dateFormat:   { type: "string", enum: ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"] },
+        defaultRole:  { type: "string", enum: ["PMO", "CEO", "STK", "DEV"] },
+      },
+    },
+  },
 ];
 
 // ── Tool execution ────────────────────────────────────────────────────────────
@@ -206,6 +222,20 @@ async function executeTool(
       const { triggerAgents } = await import("@/lib/agent-triggers");
       triggerAgents("feature_updated", toolInput.projectId as string, orgId);
       return { triggered: true, projectId: toolInput.projectId, message: "Guardian analysis triggered in background" };
+    }
+
+    case "update_ui_config": {
+      const data: Record<string, unknown> = {};
+      if (toolInput.primaryColor !== undefined) data.uiPrimaryColor = toolInput.primaryColor;
+      if (toolInput.theme        !== undefined) data.uiTheme        = toolInput.theme;
+      if (toolInput.language     !== undefined) data.uiLanguage     = toolInput.language;
+      if (toolInput.currency     !== undefined) data.uiCurrency     = toolInput.currency;
+      if (toolInput.dateFormat   !== undefined) data.uiDateFormat   = toolInput.dateFormat;
+      if (toolInput.defaultRole  !== undefined) data.uiDefaultRole  = toolInput.defaultRole;
+      if (toolInput.compactMode  !== undefined) data.uiCompactMode  = toolInput.compactMode;
+      if (Object.keys(data).length === 0) return { error: "No valid fields provided" };
+      await db.organisation.update({ where: { id: orgId }, data });
+      return { ok: true, updated: Object.keys(data), message: "UI config updated. Reload or navigate to see changes." };
     }
 
     default:

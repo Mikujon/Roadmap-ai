@@ -31,17 +31,40 @@ export interface AlertItem {
   project?:  { id: string; name: string } | null;
 }
 
+export interface UIConfig {
+  primaryColor: string;
+  theme:        string;
+  language:     string;
+  currency:     string;
+  dateFormat:   string;
+  defaultRole:  string;
+  compactMode:  boolean;
+}
+
+const DEFAULT_UI_CONFIG: UIConfig = {
+  primaryColor: "#006D6B",
+  theme:        "light",
+  language:     "en",
+  currency:     "EUR",
+  dateFormat:   "DD/MM/YYYY",
+  defaultRole:  "PMO",
+  compactMode:  false,
+};
+
 interface AppContextValue {
   projects:       ProjectSummary[];
   alerts:         AlertItem[];
   loading:        boolean;
   lastUpdated:    Date | null;
   unreadCount:    number;
+  uiConfig:       UIConfig;
   refresh:        () => Promise<void>;
   refreshProject: (id: string) => Promise<void>;
   markAlertRead:  (id: string) => void;
   markAllRead:    () => void;
   dismissAlert:   (id: string) => void;
+  updateUIConfig: (partial: Partial<UIConfig>) => Promise<void>;
+  fetchUIConfig:  () => Promise<void>;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -50,22 +73,41 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 const REFRESH_MS = 30_000;
 
+// ── CSS variable applier ──────────────────────────────────────────────────────
+
+function applyCSSVars(config: UIConfig) {
+  if (typeof window === "undefined") return;
+  const root = document.documentElement;
+  root.style.setProperty("--guardian", config.primaryColor);
+  root.style.setProperty("--guardian-light", config.primaryColor + "15");
+  root.style.setProperty("--guardian-border", config.primaryColor + "60");
+  root.style.setProperty("--spacing-base", config.compactMode ? "10px" : "14px");
+  root.style.setProperty("--card-padding", config.compactMode ? "10px 12px" : "14px 16px");
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AppProvider({
   children,
   initialRole = "PMO",
+  initialUIConfig,
 }: {
-  children:     React.ReactNode;
-  initialRole?: string;
+  children:         React.ReactNode;
+  initialRole?:     string;
+  initialUIConfig?: UIConfig;
 }) {
   const [projects,    setProjects]    = useState<ProjectSummary[]>([]);
   const [alerts,      setAlerts]      = useState<AlertItem[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [uiConfig,    setUiConfig]    = useState<UIConfig>(initialUIConfig ?? DEFAULT_UI_CONFIG);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // suppress TS unused-var for initialRole (kept for future per-role filtering)
   void initialRole;
+
+  // Apply CSS vars whenever uiConfig changes
+  useEffect(() => {
+    applyCSSVars(uiConfig);
+  }, [uiConfig]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -141,6 +183,45 @@ export function AppProvider({
     }).catch(() => {});
   }, []);
 
+  const fetchUIConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/ui-config");
+      if (!res.ok) return;
+      const { config } = await res.json();
+      if (!config) return;
+      setUiConfig({
+        primaryColor: config.uiPrimaryColor ?? DEFAULT_UI_CONFIG.primaryColor,
+        theme:        config.uiTheme        ?? DEFAULT_UI_CONFIG.theme,
+        language:     config.uiLanguage     ?? DEFAULT_UI_CONFIG.language,
+        currency:     config.uiCurrency     ?? DEFAULT_UI_CONFIG.currency,
+        dateFormat:   config.uiDateFormat   ?? DEFAULT_UI_CONFIG.dateFormat,
+        defaultRole:  config.uiDefaultRole  ?? DEFAULT_UI_CONFIG.defaultRole,
+        compactMode:  config.uiCompactMode  ?? DEFAULT_UI_CONFIG.compactMode,
+      });
+    } catch {}
+  }, []);
+
+  const updateUIConfig = useCallback(async (partial: Partial<UIConfig>) => {
+    // Map clean names to DB field names
+    const apiPayload: Record<string, unknown> = {};
+    if (partial.primaryColor !== undefined) apiPayload.uiPrimaryColor = partial.primaryColor;
+    if (partial.theme        !== undefined) apiPayload.uiTheme        = partial.theme;
+    if (partial.language     !== undefined) apiPayload.uiLanguage     = partial.language;
+    if (partial.currency     !== undefined) apiPayload.uiCurrency     = partial.currency;
+    if (partial.dateFormat   !== undefined) apiPayload.uiDateFormat   = partial.dateFormat;
+    if (partial.defaultRole  !== undefined) apiPayload.uiDefaultRole  = partial.defaultRole;
+    if (partial.compactMode  !== undefined) apiPayload.uiCompactMode  = partial.compactMode;
+
+    try {
+      await fetch("/api/settings/ui-config", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(apiPayload),
+      });
+      setUiConfig(prev => ({ ...prev, ...partial }));
+    } catch {}
+  }, []);
+
   const unreadCount = alerts.filter(a => !a.read).length;
 
   return (
@@ -150,11 +231,14 @@ export function AppProvider({
       loading,
       lastUpdated,
       unreadCount,
+      uiConfig,
       refresh,
       refreshProject,
       markAlertRead,
       markAllRead,
       dismissAlert,
+      updateUIConfig,
+      fetchUIConfig,
     }}>
       {children}
     </AppContext.Provider>
@@ -177,6 +261,11 @@ export function useProjects() {
 export function useAlerts() {
   const { alerts, unreadCount, markAlertRead, markAllRead, dismissAlert } = useApp();
   return { alerts, unreadCount, markAlertRead, markAllRead, dismissAlert };
+}
+
+export function useUIConfig() {
+  const { uiConfig, updateUIConfig, fetchUIConfig } = useApp();
+  return { uiConfig, updateUIConfig, fetchUIConfig };
 }
 
 export function usePortfolioHealth() {

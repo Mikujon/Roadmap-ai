@@ -46,6 +46,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
 
+  const orgConfig = await db.organisation.findUnique({
+    where: { id: ctx.org.id },
+    select: { uiPrimaryColor: true, uiCompactMode: true, uiTheme: true, uiLanguage: true, uiCurrency: true, uiDateFormat: true, uiDefaultRole: true },
+  });
+
+  const primaryColor = orgConfig?.uiPrimaryColor ?? "#006D6B";
+  const initialUIConfig = {
+    primaryColor,
+    theme:       orgConfig?.uiTheme      ?? "light",
+    language:    orgConfig?.uiLanguage   ?? "en",
+    currency:    orgConfig?.uiCurrency   ?? "EUR",
+    dateFormat:  orgConfig?.uiDateFormat ?? "DD/MM/YYYY",
+    defaultRole: orgConfig?.uiDefaultRole ?? "PMO",
+    compactMode: orgConfig?.uiCompactMode ?? false,
+  };
+
   const role = ctx.role as Role;
 
   const rawProjects = await db.project.findMany({
@@ -126,9 +142,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const workspaceNavItems = workspaceNavItemsBase;
 
   return (
-    <AppProvider initialRole={preferredView}>
+    <AppProvider initialRole={preferredView} initialUIConfig={initialUIConfig}>
     <>
       <style>{`
+        :root {
+          --guardian: ${primaryColor};
+          --guardian-light: ${primaryColor}15;
+          --guardian-border: ${primaryColor}60;
+          --spacing-base: ${orgConfig?.uiCompactMode ? "10px" : "14px"};
+          --card-padding: ${orgConfig?.uiCompactMode ? "10px 12px" : "14px 16px"};
+        }
         *, *::before, *::after { box-sizing: border-box }
         .app      { display: flex; flex-direction: column; height: 100vh; overflow: hidden }
         .topbar   { height: 52px; background: #FFFFFF; border-bottom: 1px solid #E5E2D9; display: flex; align-items: center; padding: 0 18px; gap: 8px; flex-shrink: 0; z-index: 20 }

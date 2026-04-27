@@ -29,6 +29,14 @@ model Organisation {
 
   apiKey          String?            @unique
 
+  uiTheme         String?  @default("light")
+  uiPrimaryColor  String?  @default("#006D6B")
+  uiLanguage      String?  @default("en")
+  uiCurrency      String?  @default("EUR")
+  uiDateFormat    String?  @default("DD/MM/YYYY")
+  uiDefaultRole   String?  @default("PMO")
+  uiCompactMode   Boolean? @default(false)
+
   slackTeamId     String?
   slackBotToken   String?
   gmailEmail      String?
