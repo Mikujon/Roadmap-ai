@@ -27,7 +27,8 @@ model Organisation {
   trialEndsAt          DateTime?
   currentPeriodEnd     DateTime?
 
-  apiKey          String?            @unique
+  apiKey               String?  @unique
+  onboardingCompleted  Boolean  @default(false)
 
   uiTheme         String?  @default("light")
   uiPrimaryColor  String?  @default("#006D6B")

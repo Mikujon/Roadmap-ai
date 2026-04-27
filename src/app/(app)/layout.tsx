@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { getAuthContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { Role } from "@prisma/client";
@@ -43,8 +44,13 @@ const IC = {
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const { userId, orgId } = await auth();
+  if (!userId) redirect("/sign-in");
+  if (!orgId)  redirect("/onboarding");
+
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
+  if (!ctx.org.onboardingCompleted) redirect("/onboarding");
 
   const orgConfig = await db.organisation.findUnique({
     where: { id: ctx.org.id },
