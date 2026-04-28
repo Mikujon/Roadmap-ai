@@ -5,7 +5,7 @@ import { ModalEditRole } from "@/components/ui/project-modals";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import InviteForm from "./InviteForm";
 
-type Role = "ADMIN" | "MANAGER" | "VIEWER";
+type Role = "ADMIN" | "PMO" | "CEO" | "STAKEHOLDER" | "DEV";
 
 interface MemberData {
   id: string; userId: string; name: string | null;
@@ -21,9 +21,11 @@ interface Props {
 }
 
 const ROLE_TAG: Record<Role, { v: "g"|"b"|"n"; label: string }> = {
-  ADMIN:   { v: "g", label: "Admin"   },
-  MANAGER: { v: "b", label: "Manager" },
-  VIEWER:  { v: "n", label: "Viewer"  },
+  ADMIN:       { v: "g", label: "Admin"       },
+  PMO:         { v: "b", label: "PMO"         },
+  CEO:         { v: "b", label: "CEO"         },
+  STAKEHOLDER: { v: "n", label: "Stakeholder" },
+  DEV:         { v: "n", label: "Dev"         },
 };
 
 const MEMBER_COLORS = [
@@ -144,9 +146,11 @@ export default function TeamPageClient({ orgName, members, invitations }: Props)
           <div style={CARD}>
             <div style={CARD_H}><span style={CARD_T}>Permissions by role</span></div>
             {[
-              ["Admin",   "All actions · delete projects · billing · team management"],
-              ["Manager", "Create/edit projects · features · risks · invitations"],
-              ["Viewer",  "Read only · financials visible · no write access"],
+              ["Admin",       "All actions · delete projects · billing · team management"],
+              ["PMO",         "Create/edit projects · features · sprints · risks · invitations"],
+              ["CEO",         "Portfolio + financial view · approve scope · read only"],
+              ["Stakeholder", "Own projects only · docs + functional analysis · read only"],
+              ["Dev",         "Assigned tasks · board view · no financial access"],
             ].map(([role, desc]) => (
               <Row key={role}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: C.text, width: 80 }}>{role}</div>

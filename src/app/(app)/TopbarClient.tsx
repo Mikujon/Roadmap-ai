@@ -156,6 +156,12 @@ function NotificationDrawer({
   );
 }
 
+const NAV = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/portfolio", label: "Portfolio" },
+  { href: "/alerts",    label: "Alerts" },
+];
+
 type MemberRole = "PMO" | "CEO" | "STAKEHOLDER" | "DEV" | "ADMIN";
 
 const ROLE_META: Record<MemberRole, { label: string; color: string; bg: string }> = {

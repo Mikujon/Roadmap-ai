@@ -81,7 +81,9 @@
       "Bash(cat \"C:\\\\\\\\Users\\\\\\\\JETMIR~1.GJE\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-jetmir-gjeloshi-Desktop-roadmap-ai\\\\\\\\c200b342-547f-4cfd-90bc-1410b175a414\\\\\\\\tasks\\\\\\\\boyi20emw.output\")",
       "Bash(curl -s -X POST http://localhost:3000/api/mcp/ingest -H 'Authorization: Bearer invalid_key' -H 'Content-Type: application/json' -d '{\"source\":\"custom\",\"orgId\":\"test\",\"events\":[]}')",
       "Bash(curl -s -X POST http://localhost:3000/api/mcp/ingest -H 'Authorization: Bearer rmai_Su1Bs8Q_1HTL0MsUUhy2-MsVRidCahcM' -H 'Content-Type: application/json' -d '{ *)",
-      "Bash(curl -s http://localhost:3000/api/settings/ui-config)"
+      "Bash(curl -s http://localhost:3000/api/settings/ui-config)",
+      "Bash(Stop-Process -Name \"node\" -Force)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "\\tmp",
