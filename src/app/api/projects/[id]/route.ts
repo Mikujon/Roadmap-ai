@@ -1,19 +1,13 @@
-import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
-import { getAuthContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity";
 import { generateClosureReport } from "@/lib/closure-report";
+import { ok, noContent, Errors } from "@/lib/api/response";
+import { withAuth, guard } from "@/lib/api/route-handler";
+import type { Role } from "@/lib/permissions";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withAuth(async (_req, ctx, { id }) => {
   const project = await db.project.findFirst({
     where: { id, organisationId: ctx.org.id },
     include: {
@@ -25,19 +19,13 @@ export async function GET(
       statusLogs: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(project);
-}
+  if (!project) return Errors.NOT_FOUND("Project");
+  return ok(project);
+});
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!can.editProject(ctx.role!))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export const PATCH = withAuth(async (req, ctx, { id }) => {
+  const forbidden = guard(ctx.role as Role, can.editProject);
+  if (forbidden) return forbidden;
 
   const body = await req.json();
 
@@ -45,7 +33,7 @@ export async function PATCH(
     where: { id, organisationId: ctx.org.id },
     select: { status: true },
   });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return Errors.NOT_FOUND("Project");
 
   const project = await db.project.update({
     where: { id, organisationId: ctx.org.id },
@@ -60,21 +48,22 @@ export async function PATCH(
       ...(body.endDate         !== undefined && { endDate:         new Date(body.endDate) }),
     },
   });
-  
-if (body.status !== undefined) {
+
+  if (body.status !== undefined) {
     revalidatePath("/dashboard");
     revalidatePath("/portfolio");
     revalidatePath("/cost");
     revalidatePath("/archive");
     // Auto-snapshot on significant changes
-if (body.endDate !== undefined || body.budgetTotal !== undefined) {
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/projects/${id}/snapshots`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reason: `Auto-snapshot: ${body.endDate ? "deadline changed" : "budget changed"}` }),
-  }).catch((err) => console.error("[auto-snapshot] failed:", err));
-}
+    if (body.endDate !== undefined || body.budgetTotal !== undefined) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/projects/${id}/snapshots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: `Auto-snapshot: ${body.endDate ? "deadline changed" : "budget changed"}` }),
+      }).catch((err) => console.error("[auto-snapshot] failed:", err));
+    }
   }
+
   // Log status change
   if (body.status && body.status !== existing.status) {
     const userName = ctx.user?.name ?? ctx.user?.email ?? "Unknown";
@@ -106,19 +95,14 @@ if (body.endDate !== undefined || body.budgetTotal !== undefined) {
       );
     }
   }
-  return NextResponse.json(project);
-}
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!can.deleteProject(ctx.role!))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return ok({ project });
+});
+
+export const DELETE = withAuth(async (_req, ctx, { id }) => {
+  const forbidden = guard(ctx.role as Role, can.deleteProject);
+  if (forbidden) return forbidden;
 
   await db.project.delete({ where: { id, organisationId: ctx.org.id } });
-  return NextResponse.json({ ok: true });
-}
+  return noContent();
+});

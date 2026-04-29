@@ -1,15 +1,8 @@
-import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
-import { getAuthContext } from "@/lib/auth";
+import { ok, Errors } from "@/lib/api/response";
+import { withAuth } from "@/lib/api/route-handler";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+export const GET = withAuth(async (_req, ctx, { id }) => {
   const project = await db.project.findFirst({
     where: { id, organisationId: ctx.org.id },
     include: {
@@ -19,7 +12,7 @@ export async function GET(
     },
   });
 
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!project) return Errors.NOT_FOUND("Project");
 
   const allFeatures = project.sprints.flatMap(s => s.features);
   const total = allFeatures.length;
@@ -135,7 +128,7 @@ export async function GET(
     });
   }
 
-  return NextResponse.json({
+  return ok({
     healthScore,
     scores: {
       schedule: Math.round(scheduleScore),
@@ -159,4 +152,4 @@ export async function GET(
     },
     recommendations,
   });
-}
+});

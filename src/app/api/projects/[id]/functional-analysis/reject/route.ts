@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { db } from "@/lib/prisma";
 
 export async function POST(
@@ -9,7 +10,7 @@ export async function POST(
   const { id } = await params;
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (ctx.role === "VIEWER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!can.approveDocuments(ctx.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const project = await db.project.findFirst({
     where: { id, organisationId: ctx.org.id },
