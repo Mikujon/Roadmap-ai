@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
-import { triggerGuardian } from "@/lib/guardian-trigger";
+import { triggerAgents } from "@/lib/agent-triggers";
 import { emit } from "@roadmap/events";
 import { can } from "@/lib/permissions";
 
@@ -105,7 +105,7 @@ export async function PATCH(
     } as any);
   } else {
     // Non-status mutations still need Guardian refresh
-    triggerGuardian(project.id, project.name);
+    triggerAgents("feature_updated", project.id, ctx.org.id);
   }
 
   return NextResponse.json({ ok: true });

@@ -3,7 +3,7 @@ import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { z } from "zod";
 import { emit } from "@roadmap/events";
-import { triggerGuardian } from "@/lib/guardian-trigger";
+import { triggerAgents } from "@/lib/agent-triggers";
 
 const UpdateSprintSchema = z.object({
   status: z.enum(["UPCOMING", "ACTIVE"]).optional(),
@@ -61,7 +61,7 @@ export async function PATCH(
     });
   } else {
     // Non-event mutations still trigger Guardian via queue
-    triggerGuardian(existing.projectId, existing.project.name);
+    triggerAgents("feature_updated", existing.projectId, ctx.org.id);
   }
 
   return NextResponse.json(sprint);

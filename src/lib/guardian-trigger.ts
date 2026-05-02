@@ -1,25 +1,20 @@
+import { db } from "@/lib/prisma";
+import { triggerAgents, type TriggerEvent } from "@/lib/agent-triggers";
+
 /**
- * Enqueues a Guardian analysis job for a project.
- * Non-blocking: job is picked up by apps/worker asynchronously.
- * Called after feature/sprint/risk mutations.
- *
- * Falls back gracefully if REDIS_URL is not configured (dev without worker).
+ * Backward-compat shim. New code should import triggerAgents from @/lib/agent-triggers directly.
+ * Looks up organisationId so callers don't need to pass it.
  */
-export async function triggerGuardian(
+export function triggerGuardian(
   projectId: string,
-  projectName = "Unknown"
-): Promise<void> {
+  _projectName = "",
+  event: TriggerEvent = "feature_updated"
+): void {
   if (!projectId) return;
-  if (!process.env.REDIS_URL) {
-    // Worker not configured — silently skip (no Redis in this env)
-    return;
-  }
-  try {
-    // Dynamic import so Next.js doesn't bundle ioredis/bullmq into the edge runtime
-    const { enqueueGuardianRun } = await import("@roadmap/queue");
-    await enqueueGuardianRun(projectId, projectName);
-  } catch (err) {
-    // Non-fatal — Guardian is best-effort
-    console.warn("[guardian-trigger] failed to enqueue job:", (err as Error).message);
-  }
+  db.project
+    .findUnique({ where: { id: projectId }, select: { organisationId: true } })
+    .then(p => {
+      if (p) triggerAgents(event, projectId, p.organisationId);
+    })
+    .catch(() => {});
 }
