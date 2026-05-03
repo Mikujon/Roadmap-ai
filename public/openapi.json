@@ -1,0 +1,811 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RoadmapAI API v2",
+    "version": "2.0.0",
+    "description": "AI-powered PMO platform API.\n\nAuth: Bearer <api-key> OR Clerk session cookie.\nAll responses: { data: {}, meta: { timestamp, version } }\nAll errors: { error: { code, message, status } }"
+  },
+  "servers": [
+    { "url": "/api/v2", "description": "Current server" }
+  ],
+  "security": [{ "BearerAuth": [] }],
+  "tags": [
+    { "name": "Projects" },
+    { "name": "Health" },
+    { "name": "Sprints" },
+    { "name": "Risks" },
+    { "name": "Alerts" },
+    { "name": "Portfolio" },
+    { "name": "MCP" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "rmai_xxx",
+        "description": "API key from Settings → Integrations"
+      }
+    },
+    "schemas": {
+      "ApiMeta": {
+        "type": "object",
+        "required": ["timestamp", "version"],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "version": { "type": "string", "example": "1.0" }
+        }
+      },
+      "Budget": {
+        "type": "object",
+        "required": ["total", "spent", "forecast"],
+        "properties": {
+          "total": { "type": "number" },
+          "spent": { "type": "number" },
+          "forecast": { "type": "number" }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "required": ["start", "end", "daysLeft", "delayDays"],
+        "properties": {
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "daysLeft": { "type": "integer" },
+          "delayDays": { "type": "integer" }
+        }
+      },
+      "EvmMetrics": {
+        "type": "object",
+        "required": ["spi", "cpi", "eac", "etc", "vac", "sv", "cv", "tcpi", "ev", "pv", "ac", "bac"],
+        "properties": {
+          "spi":  { "type": "number", "description": "Schedule Performance Index" },
+          "cpi":  { "type": "number", "description": "Cost Performance Index" },
+          "eac":  { "type": "number", "description": "Estimate At Completion" },
+          "etc":  { "type": "number", "description": "Estimate To Complete" },
+          "vac":  { "type": "number", "description": "Variance At Completion" },
+          "sv":   { "type": "number", "description": "Schedule Variance" },
+          "cv":   { "type": "number", "description": "Cost Variance" },
+          "tcpi": { "type": "number", "description": "To-Complete Performance Index" },
+          "ev":   { "type": "number", "description": "Earned Value" },
+          "pv":   { "type": "number", "description": "Planned Value" },
+          "ac":   { "type": "number", "description": "Actual Cost" },
+          "bac":  { "type": "number", "description": "Budget At Completion" }
+        }
+      },
+      "GuardianInsight": {
+        "type": "object",
+        "required": ["insight", "recommendation", "riskFlag", "lastAnalysis"],
+        "properties": {
+          "insight":        { "type": "string" },
+          "recommendation": { "type": "string" },
+          "riskFlag":       { "type": "boolean" },
+          "lastAnalysis":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProjectListItem": {
+        "type": "object",
+        "required": ["id", "name", "status", "healthScore", "health", "progress", "budget", "schedule", "spi", "cpi", "team", "openRisks"],
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "status":      { "type": "string", "enum": ["ACTIVE", "ON_HOLD", "COMPLETED", "CLOSED", "ARCHIVED"] },
+          "healthScore": { "type": "number", "minimum": 0, "maximum": 100 },
+          "health":      { "type": "string" },
+          "progress":    { "type": "number", "minimum": 0, "maximum": 100 },
+          "budget":      { "$ref": "#/components/schemas/Budget" },
+          "schedule":    { "$ref": "#/components/schemas/Schedule" },
+          "spi":         { "type": "number" },
+          "cpi":         { "type": "number" },
+          "team":        { "type": "integer" },
+          "openRisks":   { "type": "integer" },
+          "activeSprint": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["name", "progress"],
+                "properties": {
+                  "name":     { "type": "string" },
+                  "progress": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              },
+              { "type": "null" }
+            ]
+          },
+          "guardian": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["insight", "lastAnalysis"],
+                "properties": {
+                  "insight":      { "type": "string" },
+                  "lastAnalysis": { "type": "string", "format": "date-time" }
+                }
+              },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "ProjectListResponse": {
+        "type": "object",
+        "required": ["items", "total", "page", "limit", "hasMore"],
+        "properties": {
+          "items":   { "type": "array", "items": { "$ref": "#/components/schemas/ProjectListItem" } },
+          "total":   { "type": "integer" },
+          "page":    { "type": "integer" },
+          "limit":   { "type": "integer" },
+          "hasMore": { "type": "boolean" }
+        }
+      },
+      "Phase": {
+        "type": "object",
+        "required": ["label", "order", "progress", "startDate", "endDate"],
+        "properties": {
+          "label":     { "type": "string" },
+          "order":     { "type": "integer" },
+          "progress":  { "type": "number", "minimum": 0, "maximum": 100 },
+          "startDate": { "type": "string", "format": "date-time" },
+          "endDate":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "SprintSummary": {
+        "type": "object",
+        "required": ["id", "name", "status", "progress", "features", "done", "blocked"],
+        "properties": {
+          "id":        { "type": "string" },
+          "name":      { "type": "string" },
+          "status":    { "type": "string" },
+          "startDate": { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "endDate":   { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "progress":  { "type": "number", "minimum": 0, "maximum": 100 },
+          "features":  { "type": "integer" },
+          "done":      { "type": "integer" },
+          "blocked":   { "type": "integer" }
+        }
+      },
+      "RiskSummaryItem": {
+        "type": "object",
+        "required": ["id", "title", "probability", "impact", "score", "level", "status"],
+        "properties": {
+          "id":          { "type": "string" },
+          "title":       { "type": "string" },
+          "probability": { "type": "number" },
+          "impact":      { "type": "number" },
+          "score":       { "type": "number" },
+          "level":       { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "status":      { "type": "string" }
+        }
+      },
+      "TeamMember": {
+        "type": "object",
+        "required": ["name", "role", "utilization"],
+        "properties": {
+          "name":        { "type": "string" },
+          "role":        { "type": "string" },
+          "utilization": { "type": "number", "description": "Percentage of capacity used (0–100+)" }
+        }
+      },
+      "ProjectDetail": {
+        "type": "object",
+        "required": ["id", "name", "status", "healthScore", "health", "onTrackProbability", "budget", "schedule", "evm", "phases", "sprints", "risks", "team"],
+        "properties": {
+          "id":                 { "type": "string" },
+          "name":               { "type": "string" },
+          "status":             { "type": "string", "enum": ["ACTIVE", "ON_HOLD", "COMPLETED", "CLOSED", "ARCHIVED"] },
+          "healthScore":        { "type": "number" },
+          "health":             { "type": "string" },
+          "onTrackProbability": { "type": "number" },
+          "budget":             { "$ref": "#/components/schemas/Budget" },
+          "schedule":           { "$ref": "#/components/schemas/Schedule" },
+          "evm":                { "$ref": "#/components/schemas/EvmMetrics" },
+          "phases":   { "type": "array", "items": { "$ref": "#/components/schemas/Phase" } },
+          "sprints":  { "type": "array", "items": { "$ref": "#/components/schemas/SprintSummary" } },
+          "risks":    { "type": "array", "items": { "$ref": "#/components/schemas/RiskSummaryItem" } },
+          "team":     { "type": "array", "items": { "$ref": "#/components/schemas/TeamMember" } },
+          "guardian": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/GuardianInsight" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "HealthReport": {
+        "type": "object",
+        "required": ["projectId", "healthScore", "status", "onTrackProbability", "evm"],
+        "properties": {
+          "projectId":          { "type": "string" },
+          "healthScore":        { "type": "number", "minimum": 0, "maximum": 100 },
+          "status":             { "type": "string" },
+          "onTrackProbability": { "type": "number" },
+          "evm": { "$ref": "#/components/schemas/EvmMetrics" },
+          "components": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": { "type": "number" },
+                "description": "Per-component health scores keyed by component name"
+              },
+              { "type": "null" }
+            ]
+          },
+          "guardian": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/GuardianInsight" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "SprintDetail": {
+        "type": "object",
+        "required": ["id", "name", "status", "order", "progress", "features", "hours"],
+        "properties": {
+          "id":        { "type": "string" },
+          "name":      { "type": "string" },
+          "status":    { "type": "string" },
+          "order":     { "type": "integer" },
+          "startDate": { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "endDate":   { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "progress":  { "type": "number", "minimum": 0, "maximum": 100 },
+          "features": {
+            "type": "object",
+            "required": ["total", "done", "blocked", "inProgress", "todo"],
+            "properties": {
+              "total":      { "type": "integer" },
+              "done":       { "type": "integer" },
+              "blocked":    { "type": "integer" },
+              "inProgress": { "type": "integer" },
+              "todo":       { "type": "integer" }
+            }
+          },
+          "hours": {
+            "type": "object",
+            "required": ["estimated", "actual"],
+            "properties": {
+              "estimated": { "type": "number" },
+              "actual":    { "type": "number" }
+            }
+          }
+        }
+      },
+      "SprintsResponse": {
+        "type": "object",
+        "required": ["projectId", "sprints"],
+        "properties": {
+          "projectId": { "type": "string" },
+          "sprints": { "type": "array", "items": { "$ref": "#/components/schemas/SprintDetail" } }
+        }
+      },
+      "RiskItem": {
+        "type": "object",
+        "required": ["id", "title", "probability", "impact", "score", "level", "status", "createdAt"],
+        "properties": {
+          "id":          { "type": "string" },
+          "title":       { "type": "string" },
+          "description": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "probability": { "type": "number" },
+          "impact":      { "type": "number" },
+          "score":       { "type": "number" },
+          "level":       { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "status":      { "type": "string", "enum": ["OPEN", "MITIGATED", "CLOSED", "ACCEPTED"] },
+          "category":    { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "ownerId":     { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "createdAt":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "RisksResponse": {
+        "type": "object",
+        "required": ["projectId", "risks", "summary"],
+        "properties": {
+          "projectId": { "type": "string" },
+          "risks": { "type": "array", "items": { "$ref": "#/components/schemas/RiskItem" } },
+          "summary": {
+            "type": "object",
+            "required": ["total", "open", "high", "critical"],
+            "properties": {
+              "total":    { "type": "integer" },
+              "open":     { "type": "integer" },
+              "high":     { "type": "integer" },
+              "critical": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "PortfolioSummary": {
+        "type": "object",
+        "required": ["totalProjects", "activeProjects", "completedProjects", "onHoldProjects", "closedProjects", "totalBudget", "avgHealthScore", "atRiskProjects", "flaggedProjects", "openRisks", "totalAlerts"],
+        "properties": {
+          "totalProjects":     { "type": "integer" },
+          "activeProjects":    { "type": "integer" },
+          "completedProjects": { "type": "integer" },
+          "onHoldProjects":    { "type": "integer" },
+          "closedProjects":    { "type": "integer" },
+          "totalBudget":       { "type": "number" },
+          "avgHealthScore":    { "type": "number" },
+          "atRiskProjects":    { "type": "integer" },
+          "flaggedProjects":   { "type": "integer" },
+          "openRisks":         { "type": "integer" },
+          "totalAlerts":       { "type": "integer" },
+          "refreshedAt": {
+            "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+          },
+          "_pending": {
+            "type": "boolean",
+            "description": "True when the materialized view has not yet been populated"
+          }
+        }
+      },
+      "AlertItem": {
+        "type": "object",
+        "required": ["id", "title", "level", "read", "createdAt"],
+        "properties": {
+          "id":          { "type": "string" },
+          "title":       { "type": "string" },
+          "detail":      { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "level":       { "type": "string", "enum": ["critical", "warning", "info", "success"] },
+          "read":        { "type": "boolean" },
+          "projectId":   { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "projectName": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+          "createdAt":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "AlertListResponse": {
+        "type": "object",
+        "required": ["items", "total", "page", "limit", "hasMore"],
+        "properties": {
+          "items":   { "type": "array", "items": { "$ref": "#/components/schemas/AlertItem" } },
+          "total":   { "type": "integer" },
+          "page":    { "type": "integer" },
+          "limit":   { "type": "integer" },
+          "hasMore": { "type": "boolean" }
+        }
+      },
+      "IngestEvent": {
+        "type": "object",
+        "required": ["type", "content", "sender", "timestamp"],
+        "properties": {
+          "type":        { "type": "string", "enum": ["message", "email", "ticket_update", "transcript", "custom"] },
+          "content":     { "type": "string", "minLength": 1 },
+          "sender":      { "type": "string" },
+          "senderEmail": { "type": "string", "format": "email" },
+          "subject":     { "type": "string" },
+          "timestamp":   { "type": "string", "format": "date-time" },
+          "projectHint": { "type": "string", "description": "Optional project ID to hint which project this event belongs to" },
+          "metadata":    { "type": "object", "additionalProperties": true }
+        }
+      },
+      "IngestBody": {
+        "type": "object",
+        "required": ["source", "events"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["jira", "gmail", "slack", "zoom", "teams", "linear", "github", "custom"]
+          },
+          "events": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/IngestEvent" },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        }
+      },
+      "IngestResult": {
+        "type": "object",
+        "required": ["processed", "projectsUpdated", "alertsCreated"],
+        "properties": {
+          "processed":       { "type": "integer" },
+          "projectsUpdated": { "type": "integer" },
+          "alertsCreated":   { "type": "integer" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code":    { "type": "string", "example": "UNAUTHORIZED" },
+                    "message": { "type": "string", "example": "Authentication required" },
+                    "status":  { "type": "integer", "example": 401 }
+                  }
+                },
+                "meta": { "$ref": "#/components/schemas/ApiMeta" }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code":    { "type": "string", "example": "NOT_FOUND" },
+                    "message": { "type": "string", "example": "Project not found" },
+                    "status":  { "type": "integer", "example": 404 }
+                  }
+                },
+                "meta": { "$ref": "#/components/schemas/ApiMeta" }
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request validation failed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code":    { "type": "string", "example": "VALIDATION_ERROR" },
+                    "message": { "type": "string", "example": "Invalid request data" },
+                    "status":  { "type": "integer", "example": 422 },
+                    "details": { "type": "object" }
+                  }
+                },
+                "meta": { "$ref": "#/components/schemas/ApiMeta" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/projects": {
+      "get": {
+        "summary": "List projects",
+        "operationId": "listProjects",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-based)",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status. Omit to return all except ARCHIVED and CLOSED.",
+            "schema": { "type": "string", "enum": ["ACTIVE", "ON_HOLD", "COMPLETED", "CLOSED", "ARCHIVED"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of projects with EVM summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/ProjectListResponse" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "summary": "Get project by ID",
+        "operationId": "getProject",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full project with EVM metrics, phases, sprints summary, risks, team, and Guardian AI insight",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/ProjectDetail" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/projects/{id}/health": {
+      "get": {
+        "summary": "Get project health report",
+        "operationId": "getProjectHealth",
+        "tags": ["Health"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Health score, on-track probability, full EVM metrics, optional component breakdown, and Guardian AI insight",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/HealthReport" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/projects/{id}/sprints": {
+      "get": {
+        "summary": "List project sprints",
+        "operationId": "getProjectSprints",
+        "tags": ["Sprints"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered list of sprints with per-sprint feature counts and hour totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/SprintsResponse" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/projects/{id}/risks": {
+      "get": {
+        "summary": "List project risks",
+        "operationId": "getProjectRisks",
+        "tags": ["Risks"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by risk status. Omit to return all statuses.",
+            "schema": { "type": "string", "enum": ["OPEN", "MITIGATED", "CLOSED", "ACCEPTED"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Risk registry sorted by probability × impact descending, with aggregate summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/RisksResponse" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/portfolio": {
+      "get": {
+        "summary": "Get portfolio summary",
+        "operationId": "getPortfolio",
+        "tags": ["Portfolio"],
+        "responses": {
+          "200": {
+            "description": "Org-level KPI summary from the portfolio materialized view. Returns _pending: true if the view has not yet been populated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/PortfolioSummary" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/alerts": {
+      "get": {
+        "summary": "List alerts",
+        "operationId": "listAlerts",
+        "tags": ["Alerts"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by read status",
+            "schema": { "type": "string", "enum": ["read", "unread"] }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Filter by severity level",
+            "schema": { "type": "string", "enum": ["critical", "warning", "info", "success"] }
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "description": "Filter to a specific project",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of alerts ordered by createdAt descending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/AlertListResponse" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/ingest": {
+      "post": {
+        "summary": "Ingest external events",
+        "operationId": "ingestEvents",
+        "tags": ["MCP"],
+        "description": "Send events from external tools (Slack, Jira, Gmail, etc.). Claude AI identifies which project each event belongs to and automatically applies intelligence: creating risks, updating feature statuses, raising alerts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/IngestBody" },
+              "examples": {
+                "slack_message": {
+                  "summary": "Slack message about a delayed sprint",
+                  "value": {
+                    "source": "slack",
+                    "events": [
+                      {
+                        "type": "message",
+                        "content": "The mobile sprint is behind schedule, we need to push the deadline by 2 weeks.",
+                        "sender": "alice@acme.com",
+                        "timestamp": "2026-05-03T10:00:00Z",
+                        "projectHint": "proj_abc123"
+                      }
+                    ]
+                  }
+                },
+                "jira_ticket_update": {
+                  "summary": "Jira ticket moved to BLOCKED",
+                  "value": {
+                    "source": "jira",
+                    "events": [
+                      {
+                        "type": "ticket_update",
+                        "content": "PROJ-42 moved to BLOCKED: waiting for infrastructure team to provision the new server.",
+                        "sender": "automation@jira.com",
+                        "subject": "PROJ-42 status changed",
+                        "timestamp": "2026-05-03T09:30:00Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingestion summary: how many events were processed and how many projects were updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/IngestResult" },
+                    "meta": { "$ref": "#/components/schemas/ApiMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    }
+  }
+}

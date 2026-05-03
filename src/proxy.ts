@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/(.*)",
   "/api/mcp/(.*)",
   "/api/v1/(.*)",
+  "/api/v2/(.*)",
+  "/openapi.json",
 ]);
 
 const isBillingRoute = createRouteMatcher([
