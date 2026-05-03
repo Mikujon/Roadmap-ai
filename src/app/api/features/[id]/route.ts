@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
-import { triggerAgents } from "@/lib/agent-triggers";
+import { orchestrate } from "@/lib/orchestrator";
 import { emit } from "@roadmap/events";
 import { can } from "@/lib/permissions";
 
@@ -64,6 +64,9 @@ export async function PATCH(
 
   if (newSprintStatus !== sprint.status) {
     await db.sprint.update({ where: { id: sprint.id }, data: { status: newSprintStatus } });
+    if (newSprintStatus === "DONE") {
+      orchestrate("sprint_closed", sprint.project.id, ctx.org.id, { sprintId: sprint.id });
+    }
   }
 
   // Auto-update project status
@@ -103,9 +106,14 @@ export async function PATCH(
             sprintName:   existing.sprint.name,
           },
     } as any);
+    orchestrate(
+      body.status === "BLOCKED" ? "feature_blocked" : "feature_updated",
+      project.id,
+      ctx.org.id
+    );
   } else {
     // Non-status mutations still need Guardian refresh
-    triggerAgents("feature_updated", project.id, ctx.org.id);
+    orchestrate("feature_updated", project.id, ctx.org.id);
   }
 
   return NextResponse.json({ ok: true });
