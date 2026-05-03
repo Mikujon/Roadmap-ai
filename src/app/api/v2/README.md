@@ -1,62 +1,138 @@
 # API v2 — Public Headless API
 
-This directory will host the next generation of the RoadmapAI public API.
-
-**Status:** Not yet implemented. Use `/api/v1/` for external integrations.
+**Status:** Implemented. All endpoints live at `/api/v2/`.
 
 ---
 
-## Design Goals vs v1
+## Authentication
 
-| Concern | v1 (current) | v2 (planned) |
-|---------|-------------|--------------|
-| Response envelope | Inconsistent — some routes use `{ data, meta }`, others return raw | Standard `{ data, meta }` everywhere via `src/lib/api/response.ts` |
-| Auth | `getApiAuth()` — Bearer token only | Bearer token + optional Clerk session (unified) |
-| Validation | Ad-hoc `req.json()` casts | Zod schemas via `validateBody()` / `validateQuery()` |
-| Error format | `{ error: string }` | `{ error: { code, message, status, details }, meta }` |
-| Pagination | None | `PaginationSchema` — cursor-based on all list endpoints |
-| Rate limiting | None | Per-org token bucket |
-| Versioning | Path prefix `/api/v1/` | Path prefix `/api/v2/` |
+Every endpoint accepts **either**:
+
+| Method | Header | Notes |
+|--------|--------|-------|
+| Org API key | `Authorization: Bearer <org-api-key>` | Org API key from Settings → Integrations |
+| Clerk session | Cookie (browser) | Auto-attached when called from the frontend |
 
 ---
 
-## Planned Endpoints
+## Standard Response Envelope
 
+All responses use:
+
+```json
+{ "data": { ... }, "meta": { "timestamp": "...", "version": "1.0" } }
 ```
-GET  /api/v2/projects              — list projects (paginated)
-GET  /api/v2/projects/:id          — single project with EVM
-GET  /api/v2/projects/:id/sprints  — sprint breakdown
-GET  /api/v2/projects/:id/risks    — risk registry
-GET  /api/v2/projects/:id/health   — health report
-GET  /api/v2/portfolio             — portfolio summary KPIs
-GET  /api/v2/alerts                — org alerts (paginated)
-POST /api/v2/ingest                — event ingestion (replaces /api/mcp/ingest)
+
+Errors:
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Project not found", "status": 404 }, "meta": { ... } }
 ```
 
 ---
 
-## Infrastructure Already Available
+## Endpoints
 
-The following utilities in `src/lib/api/` are ready to use:
+### Projects
+
+```
+GET  /api/v2/projects                      — list (paginated, filterable by status)
+GET  /api/v2/projects/:id                  — full project + EVM + phases + team
+GET  /api/v2/projects/:id/sprints          — sprint breakdown with feature counts
+GET  /api/v2/projects/:id/risks            — risk registry with scores
+GET  /api/v2/projects/:id/health           — health report + EVM components + Guardian
+```
+
+#### GET /api/v2/projects
+
+Query params: `page` (default 1), `limit` (default 20, max 100), `status` (optional: ACTIVE | ON_HOLD | COMPLETED | CLOSED | ARCHIVED)
+
+Default excludes ARCHIVED and CLOSED.
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "...", "name": "...", "status": "ACTIVE",
+        "healthScore": 73, "health": "at_risk", "progress": 45,
+        "budget": { "total": 100000, "spent": 45000, "forecast": 95000 },
+        "schedule": { "start": "...", "end": "...", "daysLeft": 30, "delayDays": 0 },
+        "spi": 0.95, "cpi": 1.02, "team": 4, "openRisks": 2,
+        "activeSprint": { "name": "Sprint 3", "progress": 60 },
+        "guardian": { "insight": "...", "lastAnalysis": "..." }
+      }
+    ],
+    "total": 25, "page": 1, "limit": 20, "hasMore": true
+  }
+}
+```
+
+#### GET /api/v2/projects/:id/risks
+
+Query params: `status` (optional: OPEN | MITIGATED | CLOSED | ACCEPTED)
+
+#### GET /api/v2/projects/:id/health
+
+Returns `healthScore`, `status`, `onTrackProbability`, full `evm` object, `components` breakdown, and `guardian` report.
+
+---
+
+### Portfolio
+
+```
+GET  /api/v2/portfolio   — org-level KPIs from mv_portfolio_summary
+```
+
+Returns: `totalProjects`, `activeProjects`, `completedProjects`, `onHoldProjects`, `closedProjects`, `totalBudget`, `avgHealthScore`, `atRiskProjects`, `flaggedProjects`, `openRisks`, `totalAlerts`, `refreshedAt`.
+
+---
+
+### Alerts
+
+```
+GET  /api/v2/alerts      — paginated alert list
+```
+
+Query params: `page`, `limit`, `status` (read | unread), `level` (critical | warning | info | success), `projectId`
+
+---
+
+### Ingest
+
+```
+POST /api/v2/ingest      — event ingestion (replaces /api/mcp/ingest)
+```
+
+Body:
+
+```json
+{
+  "source": "slack",
+  "events": [
+    {
+      "type": "message",
+      "content": "The mobile sprint is behind schedule.",
+      "sender": "alice@acme.com",
+      "timestamp": "2026-05-03T10:00:00Z",
+      "projectHint": "proj_abc123"
+    }
+  ]
+}
+```
+
+Supported sources: `jira`, `gmail`, `slack`, `zoom`, `teams`, `linear`, `github`, `custom`  
+Max 50 events per request.
+
+Returns: `{ processed, projectsUpdated, alertsCreated }`
+
+---
+
+## Infrastructure
+
+All utilities are in `src/lib/api/`:
 
 - `response.ts` — `ok()`, `created()`, `noContent()`, `err()`, `Errors.*`
 - `validate.ts` — `validateBody()`, `validateQuery()`, `PaginationSchema`, `IdParamSchema`
-- `route-handler.ts` — `withAuth()`, `guard()`
+- `route-handler.ts` — `withAuth()` (Clerk only), `withApiAuth()` (Bearer + Clerk), `guard()`
 - `client.ts` — type-safe frontend fetch wrapper
-
----
-
-## Migration Path
-
-When implementing a v2 endpoint:
-
-1. Create `src/app/api/v2/<resource>/route.ts`
-2. Import from `@/lib/api/response`, `@/lib/api/route-handler`, `@/lib/api/validate`
-3. Use `withAuth()` wrapper for all handlers
-4. Use Zod schema for body/query validation
-5. Return `ok()` / `created()` / `Errors.*` — never raw `NextResponse.json()`
-
-Reference implementations (v1 routes migrated to the new standard):
-- `src/app/api/projects/route.ts`
-- `src/app/api/projects/[id]/route.ts`
-- `src/app/api/projects/[id]/health/route.ts`

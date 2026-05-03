@@ -283,6 +283,30 @@ I tab del progetto sono stati **completamente refactorizzati**:
 
 ---
 
+## v0.7 — API v2 Headless (HEAD)
+
+**Data:** 3 Maggio 2026  
+**Commit:** `HEAD`
+
+### Aggiunto
+- `src/lib/api/route-handler.ts` — aggiunto `withApiAuth()`: supporto Bearer (org API key) + Clerk session unificati
+- `src/lib/api/route-handler.ts` — esportato tipo `ApiAuthCtx`
+- `src/app/api/v2/projects/route.ts` — `GET /api/v2/projects` paginato, filtro status
+- `src/app/api/v2/projects/[id]/route.ts` — `GET /api/v2/projects/:id` con EVM completo + fasi + team + Guardian
+- `src/app/api/v2/projects/[id]/sprints/route.ts` — `GET /api/v2/projects/:id/sprints` con breakdown feature
+- `src/app/api/v2/projects/[id]/risks/route.ts` — `GET /api/v2/projects/:id/risks` con score/level, filtro status
+- `src/app/api/v2/projects/[id]/health/route.ts` — `GET /api/v2/projects/:id/health` con componenti health + Guardian
+- `src/app/api/v2/portfolio/route.ts` — `GET /api/v2/portfolio` KPI portfolio da materialized view
+- `src/app/api/v2/alerts/route.ts` — `GET /api/v2/alerts` paginato, filtro read/unread/level/project
+- `src/app/api/v2/ingest/route.ts` — `POST /api/v2/ingest` ingestion con Zod (max 50 eventi, 8 sorgenti)
+- `src/app/api/v2/README.md` — documentazione completa endpoint, auth, envelope
+
+### Standard envelope v2
+Tutti gli endpoint usano `{ data, meta: { timestamp, version } }` via `ok()` / `Errors.*`.
+Auth: Bearer org API key **oppure** sessione Clerk.
+
+---
+
 ## v0.6 — Current (HEAD)
 
 **Data:** ~12-15 Aprile 2026  
