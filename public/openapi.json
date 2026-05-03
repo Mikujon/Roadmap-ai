@@ -33,7 +33,7 @@
         "required": ["timestamp", "version"],
         "properties": {
           "timestamp": { "type": "string", "format": "date-time" },
-          "version": { "type": "string", "example": "1.0" }
+          "version": { "type": "string", "examples": { "default": { "value": "1.0" } } }
         }
       },
       "Budget": {
@@ -413,9 +413,9 @@
                 "error": {
                   "type": "object",
                   "properties": {
-                    "code":    { "type": "string", "example": "UNAUTHORIZED" },
-                    "message": { "type": "string", "example": "Authentication required" },
-                    "status":  { "type": "integer", "example": 401 }
+                    "code":    { "type": "string", "examples": { "default": { "value": "UNAUTHORIZED" } } },
+                    "message": { "type": "string", "examples": { "default": { "value": "Authentication required" } } },
+                    "status":  { "type": "integer", "examples": { "default": { "value": 401 } } }
                   }
                 },
                 "meta": { "$ref": "#/components/schemas/ApiMeta" }
@@ -434,9 +434,9 @@
                 "error": {
                   "type": "object",
                   "properties": {
-                    "code":    { "type": "string", "example": "NOT_FOUND" },
-                    "message": { "type": "string", "example": "Project not found" },
-                    "status":  { "type": "integer", "example": 404 }
+                    "code":    { "type": "string", "examples": { "default": { "value": "NOT_FOUND" } } },
+                    "message": { "type": "string", "examples": { "default": { "value": "Project not found" } } },
+                    "status":  { "type": "integer", "examples": { "default": { "value": 404 } } }
                   }
                 },
                 "meta": { "$ref": "#/components/schemas/ApiMeta" }
@@ -455,9 +455,9 @@
                 "error": {
                   "type": "object",
                   "properties": {
-                    "code":    { "type": "string", "example": "VALIDATION_ERROR" },
-                    "message": { "type": "string", "example": "Invalid request data" },
-                    "status":  { "type": "integer", "example": 422 },
+                    "code":    { "type": "string", "examples": { "default": { "value": "VALIDATION_ERROR" } } },
+                    "message": { "type": "string", "examples": { "default": { "value": "Invalid request data" } } },
+                    "status":  { "type": "integer", "examples": { "default": { "value": 422 } } },
                     "details": { "type": "object" }
                   }
                 },
