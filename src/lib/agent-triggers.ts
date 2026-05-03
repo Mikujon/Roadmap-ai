@@ -1,5 +1,9 @@
 import { db } from "@/lib/prisma";
 import { calculateHealth } from "@/lib/health";
+import { runDependencyAgent  } from "@/lib/skills/dependency-skill";
+import { runForecastAgent    } from "@/lib/skills/forecast-skill";
+import { runReportAgent      } from "@/lib/skills/report-skill";
+import { runMethodologyAgent } from "@/lib/skills/methodology-skill";
 
 // ── Event types ──────────────────────────────────────────────────────────────
 
@@ -10,6 +14,7 @@ export type TriggerEvent =
   | "budget_updated"
   | "risk_added"
   | "project_created"
+  | "project_completed"
   | "scope_changed"
   | "daily_sweep";
 
@@ -21,7 +26,7 @@ export function triggerAgents(
   orgId: string,
   _meta?: Record<string, unknown>
 ): void {
-  const agents: Promise<void>[] = [];
+  const agents: Promise<unknown>[] = [];
 
   // Health score runs on every mutation — immediate feedback
   if (projectId) {
@@ -40,6 +45,7 @@ export function triggerAgents(
   if (event === "feature_blocked") {
     agents.push(runDependencyMonitor(projectId));
     agents.push(runAlertGenerator(projectId));
+    agents.push(runDependencyAgent({ projectId, orgId }));
   }
 
   if (event === "risk_added") {
@@ -47,8 +53,18 @@ export function triggerAgents(
     agents.push(runAlertGenerator(projectId));
   }
 
+  if (event === "sprint_closed") {
+    agents.push(runForecastAgent({ projectId, orgId, meta: { event } }));
+    agents.push(runReportAgent({ projectId, orgId, meta: { event } }));
+    agents.push(runMethodologyAgent({ projectId, orgId, meta: { event } }));
+  }
+
   if (event === "project_created") {
     agents.push(runFullProjectSetup(projectId));
+  }
+
+  if (event === "project_completed") {
+    agents.push(runReportAgent({ projectId, orgId, meta: { event } }));
   }
 
   if (event === "daily_sweep") {
@@ -386,6 +402,8 @@ async function runDailySweep(orgId: string): Promise<void> {
       runAlertGenerator(project.id),
       runDependencyMonitor(project.id),
       runFullGuardianAnalysis(project.id, orgId),
+      runForecastAgent({ projectId: project.id, orgId }),
+      runDependencyAgent({ projectId: project.id, orgId }),
     ]);
   }
 }
