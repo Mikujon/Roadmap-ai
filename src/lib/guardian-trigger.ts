@@ -1,9 +1,11 @@
 import { db } from "@/lib/prisma";
-import { triggerAgents, type TriggerEvent } from "@/lib/agent-triggers";
+import type { TriggerEvent } from "@/lib/agent-triggers";
+import { orchestrate } from "@/lib/orchestrator";
 
 /**
- * Backward-compat shim. New code should import triggerAgents from @/lib/agent-triggers directly.
- * Looks up organisationId so callers don't need to pass it.
+ * Backward-compat shim.
+ * Now delegates to the Agent Orchestrator.
+ * New code should call orchestrate() directly.
  */
 export function triggerGuardian(
   projectId: string,
@@ -14,7 +16,7 @@ export function triggerGuardian(
   db.project
     .findUnique({ where: { id: projectId }, select: { organisationId: true } })
     .then(p => {
-      if (p) triggerAgents(event, projectId, p.organisationId);
+      if (p) orchestrate(event, projectId, p.organisationId);
     })
     .catch(() => {});
 }

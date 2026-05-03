@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { triggerAgents } from "@/lib/agent-triggers";
+import { orchestrate } from "@/lib/orchestrator";
 import { db } from "@/lib/prisma";
 
 // Called by Vercel Cron at 08:00 UTC daily (see vercel.json)
@@ -10,11 +10,14 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const orgs = await db.organisation.findMany({ select: { id: true } });
+  const projects = await db.project.findMany({
+    where:  { status: { notIn: ["CLOSED", "ARCHIVED"] } },
+    select: { id: true, organisationId: true },
+  });
 
-  for (const org of orgs) {
-    triggerAgents("daily_sweep", "", org.id);
+  for (const project of projects) {
+    orchestrate("daily_sweep", project.id, project.organisationId);
   }
 
-  return Response.json({ ok: true, orgsProcessed: orgs.length, triggeredAt: new Date().toISOString() });
+  return Response.json({ ok: true, projectsProcessed: projects.length, triggeredAt: new Date().toISOString() });
 }
