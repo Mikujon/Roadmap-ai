@@ -40,15 +40,20 @@ export async function getAuthContext() {
     },
   });
 
-  // Upsert membership
+  // Upsert membership — role is ADMIN only for the first member (org owner),
+  // PMO for everyone else. Never overwrite an already-assigned role.
+  const existingMemberCount = await db.member.count({
+    where: { organisationId: org.id },
+  });
+
   const member = await db.member.upsert({
     where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
-    update: {},
     create: {
       userId: user.id,
       organisationId: org.id,
-      role: "ADMIN",
+      role: existingMemberCount === 0 ? "ADMIN" : "PMO",
     },
+    update: {}, // DO NOT include role — never overwrite the assigned role
   });
 
   return { user, org, role: member.role };

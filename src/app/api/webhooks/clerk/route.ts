@@ -50,15 +50,26 @@ export async function POST(req: Request) {
       db.organisation.findUnique({ where: { clerkOrgId: data.organization.id } }),
     ]);
     if (user && org) {
+      // Role comes from the invitation, not from Clerk's generic org:member default
+      const invitation = await db.invitation.findFirst({
+        where: { email: user.email, organisationId: org.id, status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const correctRole = invitation?.role ?? (data.role === "org:admin" ? "ADMIN" : "PMO");
+
       await db.member.upsert({
         where: { userId_organisationId: { userId: user.id, organisationId: org.id } },
-        update: { role: data.role === "org:admin" ? "ADMIN" : "VIEWER" },
-        create: {
-          userId: user.id,
-          organisationId: org.id,
-          role: data.role === "org:admin" ? "ADMIN" : "VIEWER",
-        },
+        create: { userId: user.id, organisationId: org.id, role: correctRole },
+        update: {}, // never overwrite an already-assigned role
       });
+
+      if (invitation) {
+        await db.invitation.update({
+          where: { id: invitation.id },
+          data:  { status: "ACCEPTED" },
+        });
+      }
     }
   }
 
