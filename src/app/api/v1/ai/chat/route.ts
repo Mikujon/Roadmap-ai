@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
 import { db } from "@/lib/prisma";
 import { getApiAuth } from "@/middleware/api-auth";
+import { orchestrate } from "@/lib/orchestrator";
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -124,6 +125,65 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+// ── Context builders (CORE PRODUCT RULE) ─────────────────────────────────────
+
+async function buildProjectContext(projectId: string, orgId: string) {
+  return db.project.findFirst({
+    where: { id: projectId, organisationId: orgId },
+    include: {
+      sprints: {
+        where:   { status: { in: ["ACTIVE", "UPCOMING"] } },
+        include: { features: true },
+        orderBy: { startDate: "asc" },
+        take:    1,
+      },
+      risks:       { where: { status: "OPEN" }, select: { id: true, title: true, probability: true, impact: true } },
+      assignments: { include: { resource: { select: { name: true, role: true } } } },
+    },
+  });
+}
+
+type ProjectContext = Awaited<ReturnType<typeof buildProjectContext>>;
+
+function buildSystemPrompt(
+  ctx: { org: { name: string }; user: { name?: string | null; email: string; preferredView?: string | null } },
+  project: ProjectContext,
+): string {
+  const activeSprint = project?.sprints[0];
+  const features     = activeSprint?.features ?? [];
+  const risks        = project?.risks ?? [];
+
+  const projectSection = project
+    ? `\n--- CURRENT PROJECT CONTEXT ---
+Project: ${project.name} (ID: ${project.id})
+Status: ${project.status} | Health: ${(project as any).healthScore ?? "N/A"}/100
+Budget: €${(project as any).budgetTotal ?? 0}
+
+Active Sprint: ${activeSprint ? activeSprint.name : "None"}${activeSprint ? `
+  Tasks: ${features.length} total · ${features.filter(f => f.status === "DONE").length} done · ${features.filter(f => f.status === "IN_PROGRESS").length} in progress · ${features.filter(f => f.status === "BLOCKED").length} blocked` : ""}
+
+Open Risks: ${risks.length}${risks.length > 0 ? "\n" + risks.slice(0, 5).map(r => `  · ${r.title} (score ${r.probability * r.impact})`).join("\n") : ""}
+
+Team: ${project.assignments.length > 0 ? project.assignments.map((a: any) => `${a.resource.name} (${a.resource.role})`).join(", ") : "No assignments"}
+--- END PROJECT CONTEXT ---`
+    : "No specific project selected — use get_projects to discover projects";
+
+  return `You are Guardian AI, the intelligent PMO assistant for RoadmapAI.
+You help PMOs, CEOs, and project teams manage projects through natural language.
+You can read project data, create risks, update task statuses, and trigger analyses.
+
+Organisation: ${ctx.org.name}
+User: ${ctx.user.name ?? ctx.user.email} (${ctx.user.preferredView ?? "PMO"} view)${projectSection}
+
+Instructions:
+- When asked to do something, use tools to execute it, then confirm with specifics.
+- Always include project names, scores, and IDs in your response.
+- Be concise and professional. Prefer bullet points for lists.
+- If the user writes in Italian, respond in Italian.
+- After executing write operations (create_risk, create_feature, update_feature_status, etc.), confirm what was done.
+- If you need a project ID and don't have one, call get_projects first.`;
+}
+
 // ── Tool execution ────────────────────────────────────────────────────────────
 
 async function executeTool(
@@ -180,17 +240,22 @@ async function executeTool(
           meta:           { source: "ai_chat", score: (toolInput.probability as number) * (toolInput.impact as number) },
         },
       });
+      orchestrate("feature_updated", toolInput.projectId as string, orgId);
       return risk;
     }
 
-    case "update_feature_status":
-      return db.feature.update({
-        where: { id: toolInput.featureId as string },
-        data:  { status: toolInput.status as "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED" },
+    case "update_feature_status": {
+      const feature = await db.feature.update({
+        where:   { id: toolInput.featureId as string },
+        data:    { status: toolInput.status as "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED" },
+        include: { sprint: { select: { projectId: true } } },
       });
+      orchestrate("feature_updated", (feature as any).sprint.projectId, orgId);
+      return feature;
+    }
 
-    case "create_feature":
-      return db.feature.create({
+    case "create_feature": {
+      const feature = await db.feature.create({
         data: {
           sprintId: toolInput.sprintId as string,
           title:    toolInput.title as string,
@@ -199,12 +264,22 @@ async function executeTool(
           order:    999,
         },
       });
+      const sprint = await db.sprint.findUnique({
+        where:  { id: toolInput.sprintId as string },
+        select: { projectId: true },
+      });
+      if (sprint) orchestrate("feature_updated", sprint.projectId, orgId);
+      return feature;
+    }
 
-    case "update_project_status":
-      return db.project.update({
+    case "update_project_status": {
+      const project = await db.project.update({
         where: { id: toolInput.projectId as string, organisationId: orgId },
         data:  { status: toolInput.status as "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED" },
       });
+      orchestrate("feature_updated", toolInput.projectId as string, orgId);
+      return project;
+    }
 
     case "get_alerts":
       return db.alert.findMany({
@@ -258,21 +333,8 @@ export async function POST(req: Request) {
     const { ctx } = auth;
     const { message, projectId } = body;
 
-    const systemPrompt = `You are Guardian AI, the intelligent PMO assistant for RoadmapAI.
-You help PMOs, CEOs, and project teams manage projects through natural language.
-You can read project data, create risks, update task statuses, and trigger analyses.
-
-Organisation: ${ctx.org.name}
-User: ${ctx.user.name ?? ctx.user.email} (${ctx.user.preferredView ?? "PMO"} view)
-${projectId ? `Current project context: ${projectId}` : "No specific project selected — use get_projects to discover projects"}
-
-Instructions:
-- When asked to do something, use tools to execute it, then confirm with specifics.
-- Always include project names, scores, and IDs in your response.
-- Be concise and professional. Prefer bullet points for lists.
-- If the user writes in Italian, respond in Italian.
-- After executing write operations (create_risk, update_feature_status, etc.), confirm what was done.
-- If you need a project ID and don't have one, call get_projects first.`;
+    const project    = projectId ? await buildProjectContext(projectId, ctx.org.id) : null;
+    const systemPrompt = buildSystemPrompt(ctx, project);
 
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: message }];
     const actionsLog: { tool: string; input: unknown; result: unknown }[] = [];
