@@ -33,6 +33,7 @@ const TOOL_LABELS: Record<string, string> = {
 
 export function AIChatPanel({ open, onClose, projectId }: Props) {
   const [messages, setMessages]   = useState<Message[]>([]);
+  const [history,  setHistory]    = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput]         = useState("");
   const [loading, setLoading]     = useState(false);
   const bottomRef                 = useRef<HTMLDivElement>(null);
@@ -64,15 +65,31 @@ export function AIChatPanel({ open, onClose, projectId }: Props) {
       const res  = await fetch("/api/v1/ai/chat", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ message: text, projectId }),
+        body:    JSON.stringify({
+          message:   text,
+          projectId,
+          history:   history.slice(-10),
+        }),
       });
       const data = await res.json();
 
-      setMessages(m => [...m, {
-        role:    "assistant",
-        content: res.ok ? (data.message || "Done.") : (data.error ?? "Something went wrong."),
-        actions: res.ok ? (data.actionsPerformed ?? []) : [],
-      }]);
+      // Support both new envelope format { data: { message, actionsPerformed } } and legacy
+      const payload          = data.data ?? data;
+      const assistantContent = res.ok
+        ? (payload.message || "Done.")
+        : (data.error?.message ?? data.error ?? "Something went wrong.");
+      const actions: { tool: string; summary: string }[] = res.ok
+        ? (payload.actionsPerformed ?? []).map((a: string) => ({ tool: "action", summary: a }))
+        : [];
+
+      setMessages(m => [...m, { role: "assistant", content: assistantContent, actions }]);
+
+      // Update conversation history for multi-turn context
+      setHistory(prev => [
+        ...prev,
+        { role: "user",      content: text             },
+        { role: "assistant", content: assistantContent },
+      ]);
     } catch {
       setMessages(m => [...m, { role: "assistant", content: "Connection error. Please try again.", actions: [] }]);
     } finally {
