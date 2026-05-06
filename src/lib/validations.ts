@@ -21,5 +21,5 @@ export const UpdateFeatureSchema = z.object({
 
 export const InviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["ADMIN", "MANAGER", "VIEWER"]).default("VIEWER"),
+  role: z.enum(["ADMIN", "PMO", "CEO", "STAKEHOLDER", "DEV"]).default("PMO"),
 });
