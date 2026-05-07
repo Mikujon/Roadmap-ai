@@ -191,6 +191,11 @@ export default function TopbarClient({ orgName, initials, role }: Props) {
   const { unreadCount: alertCount } = useAlerts();
   const { lastUpdated, refresh: refreshAll } = useApp();
 
+  const currentProjectId = (() => {
+    const match = pathname.match(/\/projects\/([^\/]+)/);
+    return match ? match[1] : undefined;
+  })();
+
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   const isActive = (href: string) =>
@@ -457,6 +462,7 @@ export default function TopbarClient({ orgName, initials, role }: Props) {
       <AIChatPanel
         open={aiChatOpen}
         onClose={() => setAiChatOpen(false)}
+        projectId={currentProjectId}
       />
     </>
   );
