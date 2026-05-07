@@ -2,15 +2,19 @@ import { getAuthContext } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
+import { SkipButton } from "./SkipButton";
 
 export default async function OnboardingPage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
 
   // Check completion status
-  const projectCount = await db.project.count({ where: { organisationId: ctx.org.id } });
-  const hasProject   = projectCount > 0;
-  const hasOrg       = !!ctx.org.id;
+  const [projectCount, memberCount] = await Promise.all([
+    db.project.count({ where: { organisationId: ctx.org.id } }),
+    db.member.count({ where: { organisationId: ctx.org.id } }),
+  ]);
+  const hasProject = projectCount > 0;
+  const hasOrg     = !!ctx.org.id;
 
   // If onboarding complete → redirect to dashboard
   if (hasProject) redirect("/dashboard");
@@ -29,13 +33,13 @@ export default async function OnboardingPage() {
       action: hasOrg ? null : { label: "Create Organization", href: "/settings" },
     },
     {
-      id: 3, done: false,
+      id: 3, done: projectCount > 0,
       title: "Create your first project",
       detail: "Generate a full project roadmap with sprints, phases and features using AI.",
       action: { label: "Create First Project →", href: "/projects/new" },
     },
     {
-      id: 4, done: false,
+      id: 4, done: memberCount > 1,
       title: "Invite your team",
       detail: "Invite managers and viewers to collaborate on your projects.",
       action: { label: "Invite Members", href: "/settings/team" },
@@ -92,9 +96,7 @@ export default async function OnboardingPage() {
 
           {/* Skip */}
           <div style={{ textAlign: "center" }}>
-            <Link href="/dashboard" style={{ fontSize: 13, color: "#9E9C93", textDecoration: "none" }}>
-              Skip for now → Go to Dashboard
-            </Link>
+            <SkipButton />
           </div>
         </div>
       </div>

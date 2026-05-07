@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useApp } from "@/contexts/AppContext";
 
 interface Message {
   role: "user" | "assistant";
@@ -302,6 +303,7 @@ export function AIChatPanel({ open, onClose, projectId, projectName }: Props) {
   const [healthCard, setHealthCard] = useState<HealthCard | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { refresh, refreshProject } = useApp();
 
   const fetchHealth = useCallback(() => {
     if (!projectId) return;
@@ -373,7 +375,14 @@ export function AIChatPanel({ open, onClose, projectId, projectName }: Props) {
         { role: "assistant", content: responseText },
       ]);
 
-      if (actions.length > 0 && projectId) fetchHealth();
+      if (actions.length > 0) {
+        if (projectId) {
+          fetchHealth();
+          setTimeout(() => refreshProject(projectId), 1500);
+        } else {
+          setTimeout(() => refresh(), 1500);
+        }
+      }
     } catch {
       setMessages(prev => [...prev, {
         role: "assistant",
@@ -383,7 +392,7 @@ export function AIChatPanel({ open, onClose, projectId, projectName }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [loading, projectId, history, fetchHealth]);
+  }, [loading, projectId, history, fetchHealth, refresh, refreshProject]);
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }

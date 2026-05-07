@@ -3,12 +3,13 @@ import { getAuthContext } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 
-export default async function DepartmentDetailPage({ params }: { params: { id: string } }) {
+export default async function DepartmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/sign-in");
+  const { id } = await params;
 
   const dept = await db.department.findFirst({
-    where: { id: params.id, organisationId: ctx.org.id },
+    where: { id, organisationId: ctx.org.id },
     include: {
       resources: {
         include: { assignments: { include: { project: true } } },
