@@ -15,13 +15,11 @@ const nextConfig: NextConfig = {
     // workspace package that imports bullmq/ioredis
     "@roadmap/queue",
   ],
-  experimental: {
-    turbopack: {
-      resolveAlias: {
-        // Turbopack misresolves `.prisma/client` (leading dot → treated as relative).
-        // Point it directly to the generated output directory.
-        ".prisma/client": path.resolve(__dirname, "node_modules/.prisma/client"),
-      },
+  turbopack: {
+    resolveAlias: {
+      // Turbopack misresolves `.prisma/client` (leading dot → treated as relative).
+      // Point it directly to the generated output directory.
+      ".prisma/client": path.resolve(__dirname, "node_modules/.prisma/client"),
     },
   },
 };

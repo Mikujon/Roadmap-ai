@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import type { ProjectStatus } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -20,7 +21,7 @@ export default async function PortfolioPage() {
     dependsOn: { include: { dependsOn: true } },
   };
 
-  const baseWhere = { organisationId: ctx.org.id, status: { notIn: ["CLOSED", "ARCHIVED"] as const } };
+  const baseWhere = { organisationId: ctx.org.id, status: { notIn: ["CLOSED", "ARCHIVED"] as ProjectStatus[] } };
 
   const projects = await (
     role === "STAKEHOLDER"

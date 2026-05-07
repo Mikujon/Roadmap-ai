@@ -6,7 +6,7 @@ import { validateQuery, validateBody } from "@/lib/api/validate";
 import { orchestrate }               from "@/lib/orchestrator";
 
 const QuerySchema = z.object({
-  status: z.enum(["OPEN", "MITIGATED", "CLOSED", "ACCEPTED"]).optional(),
+  status: z.enum(["OPEN", "MITIGATED", "CLOSED"]).optional(),
 });
 
 const riskLevel = (score: number) =>

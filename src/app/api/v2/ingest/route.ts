@@ -5,23 +5,23 @@ import { ok, Errors }    from "@/lib/api/response";
 import { validateBody }  from "@/lib/api/validate";
 import { processIncomingMessage, applyIntelligence, type IncomingMessage } from "@/lib/ingestion-engine";
 
-const SOURCES = ["jira", "gmail", "slack", "zoom", "teams", "linear", "github", "custom"] as const;
+const SOURCES = ["jira", "gmail", "slack", "zoom", "teams", "linear", "github"] as const;
 const PLATFORM_MAP: Record<typeof SOURCES[number], IncomingMessage["platform"]> = {
   jira: "jira", gmail: "gmail", slack: "slack", zoom: "zoom",
-  teams: "slack", linear: "jira", github: "github", custom: "custom",
+  teams: "teams", linear: "linear", github: "github",
 };
 
 const IngestSchema = z.object({
   source: z.enum(SOURCES),
   events: z.array(z.object({
-    type:         z.enum(["message", "email", "ticket_update", "transcript", "custom"]),
+    type:         z.enum(["message", "email", "transcript", "webhook", "comment"]),
     content:      z.string().min(1),
     sender:       z.string(),
     senderEmail:  z.string().email().optional(),
     subject:      z.string().optional(),
     timestamp:    z.string(),
     projectHint:  z.string().optional(),
-    metadata:     z.record(z.unknown()).optional(),
+    metadata:     z.record(z.string(), z.unknown()).optional(),
   })).min(1).max(50),
 });
 

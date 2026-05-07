@@ -1,4 +1,5 @@
 import { z }                from "zod";
+import type { ProjectStatus } from "@prisma/client";
 import { db }               from "@/lib/prisma";
 import { withApiAuth }      from "@/lib/api/route-handler";
 import { ok, created, Errors } from "@/lib/api/response";
@@ -7,7 +8,7 @@ import { computeEvm, DB_PROJECT_INCLUDE, type ProjectRow } from "@/app/api/v1/_l
 import { orchestrate } from "@/lib/orchestrator";
 
 const QuerySchema = PaginationSchema.extend({
-  status: z.enum(["ACTIVE", "ON_HOLD", "COMPLETED", "CLOSED", "ARCHIVED"]).optional(),
+  status: z.enum(["ACTIVE", "PAUSED", "NOT_STARTED", "COMPLETED", "CLOSED", "ARCHIVED"]).optional(),
 });
 
 export const GET = withApiAuth(async (req, ctx) => {
@@ -19,7 +20,7 @@ export const GET = withApiAuth(async (req, ctx) => {
 
   const where = {
     organisationId: ctx.orgId,
-    ...(status ? { status } : { status: { notIn: ["ARCHIVED", "CLOSED"] as const } }),
+    ...(status ? { status } : { status: { notIn: ["ARCHIVED", "CLOSED"] as ProjectStatus[] } }),
   };
 
   const [projects, total] = await Promise.all([

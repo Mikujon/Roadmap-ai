@@ -49,7 +49,7 @@ export default async function TeamPage() {
               <span style={{ fontSize: 11, fontWeight: 700, color: ROLE_COLOR[m.role], background: ROLE_COLOR[m.role] + "18", padding: "3px 10px", borderRadius: 20 }}>
                 {m.role}
               </span>
-              {isAdmin && m.user.clerkId !== ctx.user.clerkId && (
+              {isAdmin && m.user.id !== ctx.user.id && (
                 <span style={{ fontSize: 10, color: "#475569", cursor: "pointer" }}>✕</span>
               )}
             </div>
