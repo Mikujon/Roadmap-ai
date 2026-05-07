@@ -101,7 +101,6 @@ export function AppProvider({
   const [loading,     setLoading]     = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [uiConfig,    setUiConfig]    = useState<UIConfig>(initialUIConfig ?? DEFAULT_UI_CONFIG);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   void initialRole;
 
   // Apply CSS vars whenever uiConfig changes
@@ -109,35 +108,114 @@ export function AppProvider({
     applyCSSVars(uiConfig);
   }, [uiConfig]);
 
-  const fetchAll = useCallback(async () => {
+  const fetchProjects = useCallback(async () => {
     try {
-      const [pRes, aRes] = await Promise.all([
-        fetch("/api/v1/projects"),
-        fetch("/api/alerts?limit=50"),
-      ]);
-      if (pRes.ok) {
-        const pData = await pRes.json();
+      const res = await fetch("/api/v1/projects");
+      if (res.ok) {
+        const pData = await res.json();
         setProjects(Array.isArray(pData.data) ? pData.data : []);
+        setLastUpdated(new Date());
       }
-      if (aRes.ok) {
-        const aData = await aRes.json();
-        setAlerts(Array.isArray(aData) ? aData : []);
-      }
-      setLastUpdated(new Date());
     } catch {
       // network error — keep stale data
-    } finally {
-      setLoading(false);
     }
   }, []);
 
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/alerts?limit=50");
+      if (res.ok) {
+        const aData = await res.json();
+        setAlerts(Array.isArray(aData) ? aData : []);
+      }
+    } catch {}
+  }, []);
+
+  const fetchAll = useCallback(async () => {
+    try {
+      await Promise.all([fetchProjects(), fetchAlerts()]);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchProjects, fetchAlerts]);
+
+  // SSE connection with polling fallback
   useEffect(() => {
-    fetchAll();
-    timerRef.current = setInterval(fetchAll, REFRESH_MS);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    let eventSource: EventSource | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const connectSSE = () => {
+      if (typeof EventSource === "undefined") {
+        pollInterval = setInterval(fetchAll, REFRESH_MS);
+        return;
+      }
+
+      try {
+        eventSource = new EventSource("/api/stream");
+
+        eventSource.onmessage = (e: MessageEvent) => {
+          try {
+            const event = JSON.parse(e.data as string);
+
+            switch (event.type) {
+              case "connected":
+                console.log("[sse] connected");
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
+                break;
+
+              case "project.health_changed":
+              case "project.updated":
+                if (event.projectId) {
+                  refreshProject(event.projectId as string);
+                } else {
+                  fetchProjects();
+                }
+                break;
+
+              case "alert.created":
+                fetchAlerts();
+                break;
+
+              case "orchestration.complete":
+                if (event.projectId) refreshProject(event.projectId as string);
+                fetchAlerts();
+                break;
+
+              case "heartbeat":
+                // Connection alive — no action needed
+                break;
+            }
+          } catch {
+            // Malformed event — ignore
+          }
+        };
+
+        eventSource.onerror = () => {
+          console.warn("[sse] connection error — falling back to polling");
+          eventSource?.close();
+          eventSource = null;
+          if (!pollInterval) {
+            pollInterval = setInterval(fetchAll, REFRESH_MS);
+          }
+        };
+      } catch {
+        // SSE unavailable — use polling
+        pollInterval = setInterval(fetchAll, REFRESH_MS);
+      }
     };
-  }, [fetchAll]);
+
+    // Initial load then connect
+    fetchAll();
+    connectSSE();
+
+    return () => {
+      eventSource?.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [fetchAll, fetchProjects, fetchAlerts, refreshProject]);
 
   const refresh = useCallback(async () => {
     setLoading(true);

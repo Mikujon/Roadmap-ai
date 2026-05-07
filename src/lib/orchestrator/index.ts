@@ -4,6 +4,7 @@ import type { AgentContext } from "@/lib/skills/types";
 import { EVENT_ROUTING } from "./routing";
 import { runAgentGroup } from "./runner";
 import { db } from "@/lib/prisma";
+import { broadcastToOrg } from "@/lib/sse/manager";
 
 /**
  * Main orchestrator entry point.
@@ -66,6 +67,31 @@ async function _runOrchestration(ctx: OrchestratorContext): Promise<Orchestrator
 
   // Log orchestration result
   _logResult(result).catch(() => {});
+
+  // Broadcast completion to all connected clients
+  const healthChanged = result.agentsRun.some(r =>
+    r.actionsPerformed.some(a => a.includes("Health score"))
+  );
+
+  broadcastToOrg(ctx.orgId, "orchestration.complete", ctx.projectId, {
+    event:        ctx.event,
+    agentsRun:    result.agentsRun.map(r => r.agentId),
+    totalAlerts:  result.totalAlerts,
+    totalActions: result.totalActions,
+    healthChanged,
+  });
+
+  if (healthChanged) {
+    broadcastToOrg(ctx.orgId, "project.health_changed", ctx.projectId, {
+      event: ctx.event,
+    });
+  }
+
+  if (result.totalAlerts > 0) {
+    broadcastToOrg(ctx.orgId, "alert.created", ctx.projectId, {
+      count: result.totalAlerts,
+    });
+  }
 
   return result;
 }
