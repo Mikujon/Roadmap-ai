@@ -189,12 +189,13 @@ export default function TopbarClient({ orgName, initials, role }: Props) {
   const { signOut } = useClerk();
 
   const { unreadCount: alertCount } = useAlerts();
-  const { lastUpdated, refresh: refreshAll } = useApp();
+  const { lastUpdated, refresh: refreshAll, projects } = useApp();
 
   const currentProjectId = (() => {
     const match = pathname.match(/\/projects\/([^\/]+)/);
     return match ? match[1] : undefined;
   })();
+  const currentProjectName = projects?.find(p => p.id === currentProjectId)?.name;
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
@@ -463,6 +464,7 @@ export default function TopbarClient({ orgName, initials, role }: Props) {
         open={aiChatOpen}
         onClose={() => setAiChatOpen(false)}
         projectId={currentProjectId}
+        projectName={currentProjectName}
       />
     </>
   );
