@@ -806,6 +806,129 @@
           "422": { "$ref": "#/components/responses/ValidationError" }
         }
       }
+    },
+    "/tools": {
+      "get": {
+        "tags": ["MCP"],
+        "summary": "List available MCP tools",
+        "description": "Returns all tools available via MCP with their input schema. No authentication required.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List of MCP tools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "tools":      { "type": "array" },
+                        "total":      { "type": "integer" },
+                        "readTools":  { "type": "integer" },
+                        "writeTools": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execute": {
+      "post": {
+        "tags": ["MCP"],
+        "summary": "Execute a MCP tool directly",
+        "description": "Execute a single tool by name. Requires Bearer API key.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tool"],
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "examples": { "default": { "value": "create_risk" } }
+                  },
+                  "input": {
+                    "type": "object",
+                    "examples": {
+                      "default": {
+                        "value": {
+                          "project_id":  "proj_abc",
+                          "title":       "ERP delivery delay",
+                          "probability": 4,
+                          "impact":      4
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tool executed successfully" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Tool or resource not found" }
+        }
+      }
+    },
+    "/skills/{skillId}": {
+      "post": {
+        "tags": ["MCP", "AI"],
+        "summary": "Execute an AI skill",
+        "description": "Run a complete AI skill with full project context. Available skills: evm-skill, risk-skill, knowledge-skill, dependency-skill, forecast-skill, report-skill, methodology-skill",
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "evm-skill",
+                "risk-skill",
+                "knowledge-skill",
+                "dependency-skill",
+                "forecast-skill",
+                "report-skill",
+                "methodology-skill"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["instruction"],
+                "properties": {
+                  "projectId":   { "type": "string" },
+                  "context":     { "type": "string" },
+                  "instruction": {
+                    "type": "string",
+                    "examples": { "default": { "value": "Analyse all open risks and suggest mitigations" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Skill executed, returns AI analysis and actions" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Skill not found" }
+        }
+      }
     }
   }
 }
