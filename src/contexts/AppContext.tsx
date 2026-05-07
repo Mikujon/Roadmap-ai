@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -139,7 +139,24 @@ export function AppProvider({
     }
   }, [fetchProjects, fetchAlerts]);
 
-  // SSE connection with polling fallback
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    await fetchAll();
+  }, [fetchAll]);
+
+  const refreshProject = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/projects/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setProjects(prev =>
+        prev.map(p => p.id === id ? { ...p, ...data } : p)
+      );
+      setLastUpdated(new Date());
+    } catch {}
+  }, []);
+
+  // SSE connection with polling fallback — declared after all callbacks it uses
   useEffect(() => {
     let eventSource: EventSource | null = null;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -216,23 +233,6 @@ export function AppProvider({
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [fetchAll, fetchProjects, fetchAlerts, refreshProject]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    await fetchAll();
-  }, [fetchAll]);
-
-  const refreshProject = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/v1/projects/${id}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setProjects(prev =>
-        prev.map(p => p.id === id ? { ...p, ...data } : p)
-      );
-      setLastUpdated(new Date());
-    } catch {}
-  }, []);
 
   const markAlertRead = useCallback((id: string) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, read: true } : a));
