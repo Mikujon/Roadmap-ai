@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { enqueueGuardianRun } from "@roadmap/queue";
+import { orchestrate } from "@/lib/orchestrator";
 
 const CACHE_TTL_HOURS = 2;
 
@@ -32,10 +32,8 @@ export async function GET(
     }
   }
 
-  // Enqueue fresh analysis — worker will upsert GuardianReport when done
-  if (process.env.REDIS_URL) {
-    await enqueueGuardianRun(projectId, project.name, { force: forceRefresh }).catch(() => {});
-  }
+  // Trigger fresh analysis via orchestrator (fire-and-forget)
+  orchestrate("daily_sweep", projectId, ctx.org.id);
 
   // Return stale cached if available while worker runs
   if (cached) {
@@ -71,9 +69,7 @@ export async function POST(
   });
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (process.env.REDIS_URL) {
-    await enqueueGuardianRun(projectId, project.name, { force: true });
-  }
+  orchestrate("daily_sweep", projectId, ctx.org.id);
 
   return NextResponse.json({ ok: true, message: "Guardian analysis queued" });
 }

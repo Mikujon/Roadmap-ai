@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
-import { enqueueGuardianRun } from "@roadmap/queue";
+import { orchestrate } from "@/lib/orchestrator";
 
-// Internal endpoint — enqueues a Guardian analysis job via BullMQ.
-// Called by guardian-trigger.ts (fire-and-forget) after data mutations.
+// Internal endpoint — triggers Guardian analysis via orchestrator (fire-and-forget).
+// Called after data mutations to kick off health recalculation.
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ projectId: string }> }
@@ -18,17 +18,14 @@ export async function POST(
 
   const project = await db.project.findUnique({
     where:  { id: projectId },
-    select: { id: true, name: true, status: true },
+    select: { id: true, name: true, status: true, organisationId: true },
   });
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (project.status === "ARCHIVED" || project.status === "CLOSED") {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
-  if (!process.env.REDIS_URL) {
-    return NextResponse.json({ ok: true, skipped: true, reason: "no REDIS_URL" });
-  }
+  orchestrate("daily_sweep", projectId, project.organisationId);
 
-  const jobId = await enqueueGuardianRun(projectId, project.name);
-  return NextResponse.json({ ok: true, jobId });
+  return NextResponse.json({ ok: true, queued: true });
 }
