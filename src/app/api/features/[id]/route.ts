@@ -4,7 +4,6 @@ import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { UpdateFeatureSchema } from "@/lib/validations";
 import { orchestrate } from "@/lib/orchestrator";
-import { emit } from "@roadmap/events";
 import { can } from "@/lib/permissions";
 
 export async function PATCH(
@@ -81,41 +80,20 @@ export async function PATCH(
   } else if (project.status === "COMPLETED") {
     await db.project.update({ where: { id: project.id }, data: { status: "ACTIVE" } });
   }
+
   revalidatePath("/dashboard");
   revalidatePath("/portfolio");
   revalidatePath("/cost");
 
-  // Emit domain event (non-blocking — outbox poller dispatches to BullMQ)
   if (body.status && body.status !== existing.status) {
-    await emit(db as any, {
-      type:          body.status === "BLOCKED" ? "feature.blocked" : "feature.status_changed",
-      aggregateType: "feature",
-      aggregateId:   id,
-      organisationId: ctx.org.id,
-      projectId:     project.id,
-      actorId:       ctx.user.id,
-      actorName:     ctx.user.name ?? ctx.user.email,
-      payload: body.status === "BLOCKED"
-        ? { featureId: id, featureTitle: existing.title, sprintId: existing.sprintId }
-        : {
-            featureId:    id,
-            featureTitle: existing.title,
-            from:         existing.status,
-            to:           body.status,
-            sprintId:     existing.sprintId,
-            sprintName:   existing.sprint.name,
-          },
-    } as any);
     orchestrate(
       body.status === "BLOCKED" ? "feature_blocked" : "feature_updated",
       project.id,
       ctx.org.id
     );
   } else {
-    // Non-status mutations still need Guardian refresh
     orchestrate("feature_updated", project.id, ctx.org.id);
   }
 
   return NextResponse.json({ ok: true });
 }
-  

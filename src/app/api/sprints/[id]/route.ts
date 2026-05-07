@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/auth";
 import { z } from "zod";
-import { emit } from "@roadmap/events";
 import { orchestrate } from "@/lib/orchestrator";
 
 const UpdateSprintSchema = z.object({
@@ -41,24 +40,8 @@ export async function PATCH(
     },
   });
 
-  // Emit domain event if sprint was started
   if (body.status === "ACTIVE" && existing.status !== "ACTIVE") {
-    await emit(db as any, {
-      type:          "sprint.started",
-      aggregateType: "sprint",
-      aggregateId:   id,
-      organisationId: ctx.org.id,
-      projectId:     existing.projectId,
-      actorId:       ctx.user.id,
-      actorName:     ctx.user.name ?? ctx.user.email,
-      payload: {
-        sprintId:   id,
-        sprintName: sprint.name,
-        sprintNum:  sprint.num,
-        startDate:  sprint.startDate?.toISOString() ?? new Date().toISOString(),
-        endDate:    sprint.endDate?.toISOString() ?? null,
-      },
-    });
+    orchestrate("sprint_closed", existing.projectId, ctx.org.id, { sprintId: id });
   } else {
     orchestrate("feature_updated", existing.projectId, ctx.org.id);
   }
