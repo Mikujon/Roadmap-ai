@@ -1,9 +1,10 @@
 import { z }                from "zod";
 import { db }               from "@/lib/prisma";
 import { withApiAuth }      from "@/lib/api/route-handler";
-import { ok, Errors }       from "@/lib/api/response";
-import { validateQuery, PaginationSchema } from "@/lib/api/validate";
+import { ok, created, Errors } from "@/lib/api/response";
+import { validateQuery, validateBody, PaginationSchema } from "@/lib/api/validate";
 import { computeEvm, DB_PROJECT_INCLUDE, type ProjectRow } from "@/app/api/v1/_lib";
+import { orchestrate } from "@/lib/orchestrator";
 
 const QuerySchema = PaginationSchema.extend({
   status: z.enum(["ACTIVE", "ON_HOLD", "COMPLETED", "CLOSED", "ARCHIVED"]).optional(),
@@ -72,4 +73,41 @@ export const GET = withApiAuth(async (req, ctx) => {
   });
 
   return ok({ items, total, page, limit, hasMore: skip + items.length < total });
+});
+
+const CreateProjectSchema = z.object({
+  name:        z.string().min(1).max(200),
+  description: z.string().optional(),
+  startDate:   z.string().datetime(),
+  endDate:     z.string().datetime(),
+  budgetTotal: z.number().min(0).optional(),
+  status:      z.enum(["NOT_STARTED", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED", "CLOSED"]).optional(),
+  category:    z.string().optional(),
+});
+
+export const POST = withApiAuth(async (req, ctx) => {
+  const b = await validateBody(req, CreateProjectSchema);
+  if (b.error) return b.error;
+
+  const project = await db.project.create({
+    data: {
+      name:           b.data.name,
+      description:    b.data.description,
+      startDate:      new Date(b.data.startDate),
+      endDate:        new Date(b.data.endDate),
+      budgetTotal:    b.data.budgetTotal ?? 0,
+      status:         b.data.status ?? "NOT_STARTED",
+      category:       b.data.category,
+      organisationId: ctx.orgId,
+    },
+  });
+
+  orchestrate("feature_updated", project.id, ctx.orgId, { userId: ctx.userId ?? undefined });
+
+  return created({
+    id:        project.id,
+    name:      project.name,
+    status:    project.status,
+    createdAt: project.createdAt.toISOString(),
+  });
 });
