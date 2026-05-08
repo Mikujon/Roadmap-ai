@@ -31,9 +31,11 @@
     "**/*.mts"
   ],
   "exclude": [
-  "node_modules",
-  "apps",
-  "roadmap-ai-ui-extracted",
-  "prisma",
-  "scripts"
-]
+    "node_modules",
+    "apps",
+    "roadmap-ai-ui-extracted",
+    "packages",
+    "prisma",
+    "scripts"
+  ]
+}

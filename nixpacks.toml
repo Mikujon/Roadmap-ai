@@ -10,6 +10,7 @@ cmds = [
 
 [phases.build]
 cmds = [
+  "npx pnpm exec prisma generate",
   "npx pnpm build"
 ]
 
