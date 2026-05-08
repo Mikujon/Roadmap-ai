@@ -4,8 +4,8 @@ nixPkgs = ["nodejs_20"]
 [phases.install]
 cmds = [
   "npm install -g pnpm@10.33.0 --force",
-  "export PATH=$PATH:/root/.npm-global/bin:/usr/local/bin",
-  "npx pnpm install --frozen-lockfile --ignore-workspace"
+  "npx pnpm install --frozen-lockfile --ignore-workspace",
+  "npx pnpm exec prisma generate"
 ]
 
 [phases.build]

@@ -4,8 +4,6 @@ import { db } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
-export const config = { api: { bodyParser: false } };
-
 const ALLOWED = new Set(["video/mp4", "video/quicktime", "video/webm"]);
 const MAX_BYTES = 200 * 1024 * 1024; // 200 MB
 
