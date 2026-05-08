@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // Only externalize packages that contain native Node.js bindings or
   // use non-bundleable APIs (net, tls, binary addons, etc.).
   serverExternalPackages: [
