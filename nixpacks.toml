@@ -2,10 +2,13 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["npm install -g pnpm@10.33.0", "pnpm install --frozen-lockfile --ignore-workspace"]
+cmds = [
+  "npm install -g pnpm@10.33.0",
+  "pnpm install --frozen-lockfile --ignore-workspace"
+]
 
 [phases.build]
 cmds = ["pnpm build"]
 
 [start]
-cmd = "pnpm start"
+cmd = "node .next/standalone/server.js"
