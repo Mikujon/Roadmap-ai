@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "apps", "roadmap-ai-ui-extracted", "packages", "prisma"]
-}
+  "exclude": [
+  "node_modules",
+  "apps",
+  "roadmap-ai-ui-extracted",
+  "prisma",
+  "scripts"
+]
