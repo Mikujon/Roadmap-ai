@@ -24,7 +24,7 @@ export default async function ArchivePage() {
     orderBy: { updatedAt: "desc" },
   });
 
-  const rows = projects.map(p => {
+  const rows = projects.map((p: typeof projects[number]) => {
     const m = getProjectMetrics(p as any);
     const isCompleted = p.status === "CLOSED";
     return {
