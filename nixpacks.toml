@@ -3,9 +3,8 @@ nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "npm install @prisma/client",
   "npm install -g pnpm@10.33.0 --force",
-  "npx pnpm install --ignore-workspace",
+  "npx pnpm install --frozen-lockfile --ignore-workspace",
   "npx pnpm exec prisma generate"
 ]
 
