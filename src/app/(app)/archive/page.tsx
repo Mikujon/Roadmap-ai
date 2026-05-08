@@ -71,7 +71,7 @@ export default async function ArchivePage() {
             <div style={{ padding: "60px 20px", textAlign: "center", fontSize: 13, color: "#9E9C93" }}>
               No archived projects yet
             </div>
-          ) : rows.map(p => {
+          ) : rows.map((p: typeof rows[number]) => {
             const dot  = p.isCompleted && p.healthScore >= 60 ? "#16A34A" : p.isCompleted ? "#D97706" : "#9E9C93";
             const tag  = p.isCompleted && p.healthScore >= 60
               ? { bg: "#F0FDF4", color: "#16A34A", border: "#BBF7D0", label: "Completed" }
